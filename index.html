@@ -11,7 +11,7 @@
       --brandPurple:#4A7A92;  /* Title + section headings */
       --text:#111827;
       --muted:#6b7280;
-      --accent:#4A7A92; /* Buttons (same as brand per request) */
+      --accent:#4A7A92;      /* Buttons */
       --card:#ffffff;         /* Card bg */
       --border:#e5e7eb;       /* Card border */
       --radius:16px;
@@ -107,9 +107,9 @@
  * CONFIG + STATE   *
  ********************/
 const GAS_ENDPOINT = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
-const DRAFT_KEY = 'career_v4';
+const DRAFT_KEY = 'career_v5';
 
-// Career questions ("Any other career preferences" removed as requested)
+// Career questions ("Any other career preferences" removed)
 const SCHEMA = [
   {qid:'car.target_career', type:'text',  prompt:'What career are you most interested in?', required:true, helper:'Examples: electrician, nurse, graphic designer, welder, teacher, mechanic'},
   {qid:'car.career_interest_reason', type:'long_text', prompt:'What makes you interested in this career?', required:true, helper:'Tip: Mention a class you liked, a family member’s job, a hobby, or a strength you have.'},
@@ -468,10 +468,9 @@ async function doSubmit(){
  * UTIL + MAIN       *
  ********************/
 function fileBase(){
-  const n=(STATE.meta.name||'Student').replace(/\s+/g,'');
-  const g=STATE.meta.grade||'NA';
-  const dt=new Date().toISOString().slice(0,16).replace(/[:T]/g,'');
-  return `Career_${n}_G${g}_${dt}`;
+  const name=(STATE.meta.name||'Student').trim().replace(/\s+/g,' ');
+  const year = new Date().getFullYear();
+  return `My Career SPIN - ${name} - ${year}`;
 }
 function trigger(blob, name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1200); }
 
