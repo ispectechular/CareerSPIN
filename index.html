@@ -27,7 +27,7 @@
     .field{display:flex;flex-direction:column;gap:6px}
     .field span{font-size:12px;color:var(--muted)}
     .field input{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff}
-    .field input:focus, textarea:focus{outline:2px solid var(--focus);outline-offset:2px}
+    .field input:focus, textarea:focus, select:focus{outline:2px solid var(--focus);outline-offset:2px}
 
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.06);padding:16px;margin:12px 0}
     .card h2{margin:0 0 8px 0;font-size:18px;color:var(--brandPurple)}
@@ -56,6 +56,9 @@
     .modal .actions{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--border)}
     .kv{display:grid;grid-template-columns:200px 1fr;gap:8px;padding:8px 0;border-bottom:1px dashed var(--border)}
     .kv b{color:var(--muted)}
+
+    /* Teacher row in modal */
+    .teacher-row{display:grid;grid-template-columns:220px 1fr;gap:8px;align-items:center;padding:8px 18px;border-bottom:1px solid var(--border)}
   </style>
 </head>
 <body>
@@ -70,9 +73,9 @@
 
     <!-- META -->
     <div class="meta">
-      <label class="field"><span class="req">Student Name (First & Last)</span><input id="m_name" type="text" placeholder="First Last" required aria-describedby="name_help"><div id="name_help" class="helper">Example: <em>Jordan Smith</em></div><div id="err_name" class="error" style="display:none"></div></label>
-      <label class="field"><span class="req">Student Email</span><input id="m_email" type="email" placeholder="name@students.wawasee.k12.in.us" required><div id="err_email" class="error" style="display:none"></div></label>
-      <label class="field"><span class="req">Grade</span><input id="m_grade" type="text" placeholder="9" required><div id="err_grade" class="error" style="display:none"></div></label>
+      <label class="field"><span class="req">Student Name (First & Last)</span><input id="m_name" type="text" placeholder="Ex. John Smith" required aria-describedby="name_help"><div id="name_help" class="helper">Please enter your first and last name.</div><div id="err_name" class="error" style="display:none"></div></label>
+      <label class="field"><span class="req">Student Email</span><input id="m_email" type="email" placeholder="Ex. first.last@students.wawasee.k12.in.us" required><div id="err_email" class="error" style="display:none"></div></label>
+      <label class="field"><span class="req">Grade</span><input id="m_grade" type="text" placeholder="Ex. 12th Grade" required><div id="err_grade" class="error" style="display:none"></div></label>
       <label class="field"><span class="req">Date</span><input id="m_date" type="date" required><div id="err_date" class="error" style="display:none"></div></label>
     </div>
 
@@ -94,6 +97,15 @@
   <div class="modal-backdrop" id="confirm_modal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm_title">
       <header id="confirm_title">Review your responses</header>
+      <div class="teacher-row">
+        <div><b>Teacher of Record</b></div>
+        <div>
+          <select id="teacher_select">
+            <option value="" selected>Select your teacher…</option>
+          </select>
+          <div id="err_teacher" class="error" style="display:none">Please select your teacher.</div>
+        </div>
+      </div>
       <div class="content" id="confirm_content"></div>
       <div class="actions">
         <button id="back_btn" class="btn ghost">Go back and edit</button>
@@ -107,7 +119,16 @@
  * CONFIG + STATE   *
  ********************/
 const GAS_ENDPOINT = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
-const DRAFT_KEY = 'career_v5';
+const DRAFT_KEY = 'career_v6';
+
+// Teacher roster (students see names only)
+const TEACHERS = [
+  {name:'Jesse Ritter', email:'jritter@wawasee.k12.in.us'},
+  {name:'Christine Troutman', email:'ctroutman@wawasee.k12.in.us'},
+  {name:'Jill Hackleman', email:'Jill.hackleman@wawasee.k12.in.us'},
+  {name:'David Shipley', email:'dshipley@wawasee.k12.in.us'},
+  {name:'Wendy Ortiz', email:'wortiz@wawasee.k12.in.us'},
+];
 
 // Career questions ("Any other career preferences" removed)
 const SCHEMA = [
@@ -135,7 +156,7 @@ const SCHEMA = [
   {qid:'car.improvement_areas_text', type:'long_text', prompt:'What areas do you need to improve on to be successful in your career? List 3 or more.', required:true, helper:'Examples: organization, communication, time management, reading/writing/math, asking for help.'}
 ];
 
-const STATE = { meta:{}, answers:{}, errors:{} };
+const STATE = { meta:{}, answers:{}, errors:{}, teacher:null };
 
 /********************
  * HELPERS          *
@@ -170,7 +191,7 @@ function bindMeta(){
 function hasFirstAndLast(name){if(!name)return false;const parts=name.trim().split(/\s+/);return parts.length>=2;}
 function metaErrors(){
   const errs={};
-  if(!hasFirstAndLast(STATE.meta.name)) errs.name='Please enter FIRST and LAST name (e.g., Jordan Smith).';
+  if(!hasFirstAndLast(STATE.meta.name)) errs.name='Please enter FIRST and LAST name (e.g., John Smith).';
   if(!STATE.meta.email) errs.email='Email is required.';
   if(!STATE.meta.grade) errs.grade='Grade is required.';
   if(!STATE.meta.date)  errs.date='Date is required.';
@@ -204,10 +225,10 @@ function renderQ(q){
   const val=STATE.answers[q.qid];
 
   if(q.type==='text'){
-    const i=document.createElement('input'); i.type='text'; i.value=val||''; i.oninput=e=>{ STATE.answers[q.qid]=e.target.value; saveDraft(); nudgeClear(q.qid); updateProgress(); };
+    const i=document.createElement('input'); i.type='text'; i.placeholder='Ex. Welder'; i.value=val||''; i.oninput=e=>{ STATE.answers[q.qid]=e.target.value; saveDraft(); nudgeClear(q.qid); updateProgress(); };
     row.appendChild(i);
   } else if(q.type==='long_text'){
-    const t=document.createElement('textarea'); t.value=val||''; t.oninput=e=>{ STATE.answers[q.qid]=e.target.value; saveDraft(); nudgeClear(q.qid); updateProgress(); };
+    const t=document.createElement('textarea'); t.placeholder='Ex. I like working with engines and enjoyed my auto class...'; t.value=val||''; t.oninput=e=>{ STATE.answers[q.qid]=e.target.value; saveDraft(); nudgeClear(q.qid); updateProgress(); };
     row.appendChild(t);
   } else if(q.type==='single'){
     (q.options||[]).forEach(o=>{
@@ -220,7 +241,7 @@ function renderQ(q){
     if(q.other){
       const lab=document.createElement('label'); lab.className='option';
       const r=document.createElement('input'); r.type='radio'; r.name=q.qid; r.value='other'; r.checked=(val==='other');
-      const t=document.createElement('input'); t.type='text'; t.placeholder='Other…';
+      const t=document.createElement('input'); t.type='text'; t.placeholder='Other (type here)…';
       t.value=STATE.answers[q.qid+'_other']||'';
       r.onchange=()=>{ STATE.answers[q.qid]='other'; saveDraft(); t.focus(); nudgeClear(q.qid); updateProgress(); };
       t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; saveDraft(); };
@@ -245,7 +266,7 @@ function renderQ(q){
       const lab=document.createElement('label'); lab.className='option';
       const c=document.createElement('input'); c.type='checkbox'; c.value='other';
       const arr=Array.isArray(val)?val:[]; c.checked=arr.includes('other');
-      const t=document.createElement('input'); t.type='text'; t.placeholder='Other…'; t.value=STATE.answers[q.qid+'_other']||'';
+      const t=document.createElement('input'); t.type='text'; t.placeholder='Other (type here)…'; t.value=STATE.answers[q.qid+'_other']||'';
       c.onchange=()=>{
         let a=Array.isArray(STATE.answers[q.qid])?STATE.answers[q.qid]:[];
         if(c.checked){ if(!a.includes('other')) a.push('other'); t.focus(); }
@@ -426,7 +447,14 @@ function buildConfirmationHTML(){
   });
   return lines.join('');
 }
-function openConfirm(){ $('#confirm_content').innerHTML = buildConfirmationHTML(); $('#confirm_modal').style.display='flex'; }
+function openConfirm(){
+  // Populate teacher dropdown each time (in case roster changes later)
+  const sel=$('#teacher_select'); sel.innerHTML='<option value="" selected>Select your teacher…</option>';
+  TEACHERS.forEach((t,i)=>{ const opt=document.createElement('option'); opt.value=String(i); opt.textContent=t.name; sel.appendChild(opt); });
+  $('#err_teacher').style.display='none';
+  $('#confirm_content').innerHTML = buildConfirmationHTML();
+  $('#confirm_modal').style.display='flex';
+}
 function closeConfirm(){ $('#confirm_modal').style.display='none'; }
 
 /********************
@@ -440,7 +468,21 @@ async function submitFlow(){
   openConfirm();
 }
 
+function getSelectedTeacher(){
+  const sel=$('#teacher_select'); const idx=sel.value;
+  if(idx==='') return null; return TEACHERS[Number(idx)] || null;
+}
+
+function formatSubjectDate(){
+  const d = new Date();
+  const yyyy=d.getFullYear(); const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 async function doSubmit(){
+  const teacher=getSelectedTeacher();
+  if(!teacher){ $('#err_teacher').style.display='block'; return; }
+
   const [pdf,json,csv,txt] = [await buildPDF(), buildJSON(), buildCSV(), buildTXT()];
   const base = fileBase();
   const files=[
@@ -450,13 +492,15 @@ async function doSubmit(){
     new File([txt], base+'.txt',  {type:'text/plain'})
   ];
   const payload={
-    student:{ lastFirst:(STATE.meta.name||'Student').split(' ').reverse().join('_'), student_name:STATE.meta.name||'', grade:STATE.meta.grade||'', survey_set:'Career' },
+    to: teacher.email,
+    subject: `My Career SPIN Submission - ${formatSubjectDate()}`,
+    student:{ lastFirst:(STATE.meta.name||'Student').split(' ').reverse().join('_'), student_name:STATE.meta.name||'', grade:STATE.meta.grade||'', survey_set:'Career', teacher_name:teacher.name },
     files: await Promise.all(files.map(async f=>({ filename:f.name, mimeType:f.type, data: await toB64(f) })))
   };
   try{
     const r=await fetch(GAS_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     try{ const j=await r.json(); console.log('GAS response', j); }catch{}
-    $('#status').textContent='Submitted! Your files were sent.';
+    $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
   }catch(e){
     console.error(e); alert('Submission failed. Download your PDF and share manually.');
   } finally {
