@@ -5,26 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>My Career SPIN</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
-  <!-- jsPDF for PDF generation -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">function showToast(message, linkHref){
-  const toast=$('#toast'); if(!toast) return;
-  $('#toast_msg').textContent = message || 'Survey submitted';
-  const a=$('#toast_link'); if(a){ if(linkHref){ a.href=linkHref; a.style.display='inline'; } else { a.style.display='none'; } }
-  toast.style.display='flex';
-  // Auto-hide after 10s
-  setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000);
-}
-$('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.style.display='none'; });
-
-</script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root{
-      --brandPurple:#4A7A92;  /* Title + section headings */
+      --brandPurple:#4A7A92;
       --text:#111827;
       --muted:#6b7280;
-      --accent:#4A7A92;      /* Buttons */
-      --card:#ffffff;         /* Card bg */
-      --border:#e5e7eb;       /* Card border */
+      --accent:#4A7A92;
+      --card:#ffffff;
+      --border:#e5e7eb;
       --radius:16px;
       --danger:#b91c1c;
       --focus:#2563eb;
@@ -32,16 +21,14 @@ $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.s
     *{box-sizing:border-box}
     body{margin:0;background:#fff;color:var(--text);font-family:'Lexend',system-ui,Arial,sans-serif}
     .wrap{max-width:980px;margin:0 auto;padding:24px}
-    h1{margin:0 0 8px 0;color:var(--brandPurple);font-size:28px;font-weight:700}
+    h1{color:var(--brandPurple);font-size:28px;font-weight:700;margin:0 0 8px}
     .subnote{font-size:12px;color:var(--muted);margin-bottom:12px}
     .meta{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin:12px 0 20px}
     .field{display:flex;flex-direction:column;gap:6px}
     .field span{font-size:12px;color:var(--muted)}
-    .field input, .field select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff}
-    .field input:focus, textarea:focus, select:focus{outline:2px solid var(--focus);outline-offset:2px}
-
+    .field input,.field select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff}
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.06);padding:16px;margin:12px 0}
-    .card h2{margin:0 0 8px 0;font-size:18px;color:var(--brandPurple)}
+    .card h2{margin:0 0 8px;font-size:18px;color:var(--brandPurple)}
     .row{margin:8px 0}
     .helper{font-size:12px;color:var(--muted);margin-top:6px}
     .error{font-size:12px;color:var(--danger);margin-top:6px}
@@ -50,16 +37,15 @@ $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.s
     textarea{min-height:110px;resize:vertical}
     .req::after{content:' *';color:var(--danger)}
 
-    .topbar{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
-    .progress{font-size:12px;color:var(--muted)}
-
-    .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px}
+    .bar{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:16px}
     .btn{border:none;border-radius:12px;padding:10px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
-    .btn.ghost{background:#1118270d;color:#111827;border:1px solid var(--border)}
     .btn:disabled{opacity:.6;cursor:not-allowed}
-    .stack{display:flex;gap:8px;flex-wrap:wrap}
 
-    /* Confirmation modal */
+    .toast{position:fixed;right:16px;bottom:16px;display:none;align-items:center;gap:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.15);z-index:9999}
+    .toast a{font-weight:700;text-decoration:underline;color:#065f46}
+    .toast .close{margin-left:6px;border:none;background:transparent;cursor:pointer;color:#065f46;font-weight:700}
+
+    /* Modal */
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:none;align-items:center;justify-content:center;padding:16px}
     .modal{max-width:820px;width:100%;background:#fff;border-radius:16px;border:1px solid var(--border);box-shadow:0 20px 60px rgba(0,0,0,0.2)}
     .modal header{padding:16px 18px;border-bottom:1px solid var(--border);color:var(--brandPurple);font-weight:700}
@@ -67,31 +53,21 @@ $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.s
     .modal .actions{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--border)}
     .kv{display:grid;grid-template-columns:200px 1fr;gap:8px;padding:8px 0;border-bottom:1px dashed var(--border)}
     .kv b{color:var(--muted)}
-  .toast{position:fixed;right:16px;bottom:16px;display:none;align-items:center;gap:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.15);z-index:9999}
-.toast a{font-weight:700;text-decoration:underline;color:#065f46}
-.toast .close{margin-left:6px;border:none;background:transparent;cursor:pointer;color:#065f46;font-weight:700}
-</style>
+  </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="topbar">
-      <div>
-        <h1>My Career SPIN</h1>
-        <div class="subnote">Complete all required items. Your teacher will receive your submission as a PDF.</div>
-      </div>
-      <div class="progress" id="required_progress">Required: 0/0</div>
-    </div>
+    <h1>My Career SPIN</h1>
+    <div class="subnote">Complete all required items. Your teacher will receive your submission as a PDF.</div>
 
     <!-- META -->
     <div class="meta">
-      <label class="field"><span class="req">Student Name (First &amp; Last)</span><input id="m_name" type="text" placeholder="Ex. John Smith" required aria-describedby="name_help"><div id="name_help" class="helper">Please enter your first and last name.</div><div id="err_name" class="error" style="display:none"></div></label>
-      <label class="field"><span class="req">Student Email</span><input id="m_email" type="email" placeholder="Ex. first.last@students.wawasee.k12.in.us" required><div id="err_email" class="error" style="display:none"></div></label>
-      <label class="field"><span class="req">Grade</span><input id="m_grade" type="text" placeholder="Ex. 12th Grade" required><div id="err_grade" class="error" style="display:none"></div></label>
-      <label class="field"><span class="req">Date</span><input id="m_date" type="date" required><div id="err_date" class="error" style="display:none"></div></label>
+      <label class="field"><span class="req">Student Name (First &amp; Last)</span><input id="m_name" type="text" placeholder="Ex. John Smith" required></label>
+      <label class="field"><span class="req">Student Email</span><input id="m_email" type="email" placeholder="Ex. first.last@students.wawasee.k12.in.us" required></label>
+      <label class="field"><span class="req">Grade</span><input id="m_grade" type="text" placeholder="Ex. 12th Grade" required></label>
+      <label class="field"><span class="req">Date</span><input id="m_date" type="date" required></label>
       <label class="field"><span class="req">Teacher of Record</span>
-        <select id="m_teacher">
-          <option value="">Select your teacher…</option>
-        </select>
+        <select id="m_teacher"><option value="">Select your teacher…</option></select>
         <div id="err_teacher" class="error" style="display:none">Please select your teacher.</div>
       </label>
     </div>
@@ -100,14 +76,10 @@ $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.s
     <div id="qroot"></div>
 
     <!-- ACTIONS -->
-    <div class="bar">
-      <div class="stack">
-        <button id="save" class="btn ghost">Save draft</button>
-        <button id="exp_pdf" class="btn">PDF</button>
-      </div>
-      <button id="submit" class="btn">Submit</button>
-    </div>
+    <div class="bar"><button id="submit" class="btn">Submit</button></div>
     <div id="status" class="helper" aria-live="polite"></div>
+
+    <!-- Toast -->
     <div id="toast" class="toast" role="status" aria-live="polite">
       <span id="toast_msg">Survey submitted.</span>
       <a id="toast_link" href="#" target="_blank" rel="noopener">View your PDF</a>
@@ -132,19 +104,18 @@ $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.s
  * CONFIG + STATE   *
  ********************/
 const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxqZqobN7NZCxe1GMFioykj7wUEWMs30dF8NxTIRBUwKAlll1BuQNZshYqRJGpDlS2p/exec';
-const DRAFT_KEY = 'career_v7';
-
-// Teacher roster (students see names only)
-const TEACHERS = [
-  {name:'Jesse Ritter', email:'jritter@wawasee.k12.in.us'},
-  {name:'Christine Troutman', email:'ctroutman@wawasee.k12.in.us'},
-  {name:'Jill Hackleman', email:'Jill.hackleman@wawasee.k12.in.us'},
-  {name:'David Shipley', email:'dshipley@wawasee.k12.in.us'},
-  {name:'Wendy Ortiz', email:'wortiz@wawasee.k12.in.us'},
+const TEACHERS=[
+  {name:'Jesse Ritter',email:'jritter@wawasee.k12.in.us'},
+  {name:'Christine Troutman',email:'ctroutman@wawasee.k12.in.us'},
+  {name:'Jill Hackleman',email:'Jill.hackleman@wawasee.k12.in.us'},
+  {name:'David Shipley',email:'dshipley@wawasee.k12.in.us'},
+  {name:'Wendy Ortiz',email:'wortiz@wawasee.k12.in.us'}
 ];
 
-// Career questions ("Any other career preferences" removed)
-const SCHEMA = [
+const STATE={meta:{},answers:{}};
+
+// Career questions (kept concise but complete; no "any other career preferences")
+const SCHEMA=[
   {qid:'car.target_career', type:'text',  prompt:'What career are you most interested in?', required:true, helper:'Examples: electrician, nurse, graphic designer, welder, teacher, mechanic'},
   {qid:'car.career_interest_reason', type:'long_text', prompt:'What makes you interested in this career?', required:true, helper:'Tip: Mention a class you liked, a family member’s job, a hobby, or a strength you have.'},
   {qid:'car.training_interest', type:'single', prompt:'Are you interested in receiving additional training for career development?', required:true,
@@ -169,104 +140,43 @@ const SCHEMA = [
   {qid:'car.improvement_areas_text', type:'long_text', prompt:'What areas do you need to improve on to be successful in your career? List 3 or more.', required:true, helper:'Examples: organization, communication, time management, reading/writing/math, asking for help.'}
 ];
 
-const STATE = { meta:{}, answers:{}, errors:{}, teacher:null };
-
 /********************
  * HELPERS          *
  ********************/
-const $ = sel => document.querySelector(sel);
-const $$ = sel => Array.from(document.querySelectorAll(sel));
-const todayISO = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-const toB64 = blob => new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(fr.result.split(',')[1]); fr.readAsDataURL(blob); });
-const qs = new URLSearchParams(location.search||'');
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
+const toB64=blob=>new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result.split(',')[1]);fr.readAsDataURL(blob);});
 
 /********************
- * META + PREFILL    *
+ * RENDER            *
  ********************/
-function initMeta(){
-  STATE.meta = {
-    name:  qs.get('name')  || '',
-    email: qs.get('email') || '',
-    grade: qs.get('grade') || '',
-    date:  qs.get('date')  || todayISO(),
-    schema_version:'1.0', survey_set:'Transition-2025'
-  };
-  $('#m_name').value  = STATE.meta.name;
-  $('#m_email').value = STATE.meta.email;
-  $('#m_grade').value = STATE.meta.grade;
-  $('#m_date').value  = STATE.meta.date;
-}
-function bindMeta(){
-  [['#m_name','name'],['#m_email','email'],['#m_grade','grade'],['#m_date','date']].forEach(([sel,key])=>{
-    $(sel).addEventListener('input', e=>{STATE.meta[key]=e.target.value;saveDraft();updateProgress();clearMetaError(key);});
-  });
-}
-function initTeacher(){
-  const sel=$('#m_teacher'); if(!sel) return;
-  sel.innerHTML='<option value="">Select your teacher…</option>';
-  TEACHERS.forEach((t,i)=>{ const o=document.createElement('option'); o.value=String(i); o.textContent=t.name; sel.appendChild(o); });
-  if(STATE.teacher!==null && STATE.teacher!==undefined && STATE.teacher!=='') sel.value=String(STATE.teacher);
-  sel.addEventListener('change', e=>{ STATE.teacher = e.target.value===''? null : Number(e.target.value); saveDraft(); $('#err_teacher').style.display='none'; });
-}
-function hasFirstAndLast(name){if(!name)return false;const parts=name.trim().split(/\s+/);return parts.length>=2;}
-function metaErrors(){
-  const errs={};
-  if(!hasFirstAndLast(STATE.meta.name)) errs.name='Please enter FIRST and LAST name (e.g., John Smith).';
-  if(!STATE.meta.email) errs.email='Email is required.';
-  if(!STATE.meta.grade) errs.grade='Grade is required.';
-  if(!STATE.meta.date)  errs.date='Date is required.';
-  if(!getSelectedTeacher()) errs.teacher='Please select your teacher.';
-  return errs;
-}
-function showMetaErrors(errs){
-  $('#err_name').style.display = errs.name? 'block':'none'; $('#err_name').textContent = errs.name||'';
-  $('#err_email').style.display= errs.email?'block':'none'; $('#err_email').textContent= errs.email||'';
-  $('#err_grade').style.display= errs.grade?'block':'none'; $('#err_grade').textContent= errs.grade||'';
-  $('#err_date').style.display = errs.date? 'block':'none'; $('#err_date').textContent = errs.date||'';
-  $('#err_teacher').style.display = errs.teacher? 'block':'none'; $('#err_teacher').textContent = errs.teacher||'';
-}
-function clearMetaError(key){
-  if(key==='name') $('#err_name').style.display='none';
-  if(key==='email')$('#err_email').style.display='none';
-  if(key==='grade')$('#err_grade').style.display='none';
-  if(key==='date') $('#err_date').style.display='none';
-}
-
-/********************
- * RENDER + NUDGES   *
- ********************/
-function render(){
-  const root=$('#qroot'); root.innerHTML='';
-  SCHEMA.forEach(q=> root.appendChild(renderQ(q)) );
-  updateProgress();
-}
+function render(){ const root=$('#qroot'); root.innerHTML=''; SCHEMA.forEach(q=> root.appendChild(renderQ(q)) ); }
 function renderQ(q){
   const card=document.createElement('div'); card.className='card';
   const h=document.createElement('h2'); h.textContent=q.prompt; if(q.required) h.classList.add('req'); card.appendChild(h);
   const row=document.createElement('div'); row.className='row';
   const val=STATE.answers[q.qid];
-
   if(q.type==='text'){
-    const i=document.createElement('input'); i.type='text'; i.placeholder='Ex. Welder'; i.value=val||''; i.oninput=e=>{ STATE.answers[q.qid]=e.target.value; saveDraft(); nudgeClear(q.qid); updateProgress(); };
+    const i=document.createElement('input'); i.type='text'; i.placeholder='Type your answer…'; i.value=val||''; i.oninput=e=>{ STATE.answers[q.qid]=e.target.value; nudgeClear(q.qid); };
     row.appendChild(i);
   } else if(q.type==='long_text'){
-    const t=document.createElement('textarea'); t.placeholder='Ex. I like working with engines and enjoyed my auto class...'; t.value=val||''; t.oninput=e=>{ STATE.answers[q.qid]=e.target.value; saveDraft(); nudgeClear(q.qid); updateProgress(); };
+    const t=document.createElement('textarea'); t.placeholder='Type your answer…'; t.value=val||''; t.oninput=e=>{ STATE.answers[q.qid]=e.target.value; nudgeClear(q.qid); };
     row.appendChild(t);
   } else if(q.type==='single'){
     (q.options||[]).forEach(o=>{
       const lab=document.createElement('label'); lab.className='option';
       const r=document.createElement('input'); r.type='radio'; r.name=q.qid; r.value=o.oid; r.checked=(val===o.oid);
-      r.onchange=()=>{ STATE.answers[q.qid]=o.oid; saveDraft(); nudgeClear(q.qid); updateProgress(); };
+      r.onchange=()=>{ STATE.answers[q.qid]=o.oid; nudgeClear(q.qid); };
       lab.appendChild(r); lab.appendChild(document.createTextNode(o.label));
       row.appendChild(lab);
     });
     if(q.other){
       const lab=document.createElement('label'); lab.className='option';
       const r=document.createElement('input'); r.type='radio'; r.name=q.qid; r.value='other'; r.checked=(val==='other');
-      const t=document.createElement('input'); t.type='text'; t.placeholder='Other (type here)…';
-      t.value=STATE.answers[q.qid+'_other']||'';
-      r.onchange=()=>{ STATE.answers[q.qid]='other'; saveDraft(); t.focus(); nudgeClear(q.qid); updateProgress(); };
-      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; saveDraft(); };
+      const t=document.createElement('input'); t.type='text'; t.placeholder='Other (type here)…'; t.value=STATE.answers[q.qid+'_other']||'';
+      r.onchange=()=>{ STATE.answers[q.qid]='other'; t.focus(); nudgeClear(q.qid); };
+      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; };
       lab.appendChild(r); lab.appendChild(document.createTextNode('Other: ')); lab.appendChild(t);
       row.appendChild(lab);
     }
@@ -279,7 +189,7 @@ function renderQ(q){
         let a=Array.isArray(STATE.answers[q.qid])?STATE.answers[q.qid]:[];
         if(c.checked){ if(!a.includes(o.oid)) a.push(o.oid); }
         else { a=a.filter(x=>x!==o.oid); }
-        STATE.answers[q.qid]=a; saveDraft(); nudgeClear(q.qid); updateProgress();
+        STATE.answers[q.qid]=a; nudgeClear(q.qid);
       };
       lab.appendChild(c); lab.appendChild(document.createTextNode(o.label));
       row.appendChild(lab);
@@ -293,68 +203,78 @@ function renderQ(q){
         let a=Array.isArray(STATE.answers[q.qid])?STATE.answers[q.qid]:[];
         if(c.checked){ if(!a.includes('other')) a.push('other'); t.focus(); }
         else { a=a.filter(x=>x!=='other'); }
-        STATE.answers[q.qid]=a; saveDraft(); nudgeClear(q.qid); updateProgress();
+        STATE.answers[q.qid]=a; nudgeClear(q.qid);
       };
-      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; saveDraft(); };
+      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; };
       lab.appendChild(c); lab.appendChild(document.createTextNode('Other: ')); lab.appendChild(t);
       row.appendChild(lab);
     }
   }
-
   if(q.helper){ const help=document.createElement('div'); help.className='helper'; help.textContent=q.helper; card.appendChild(help); }
-  const err = document.createElement('div'); err.id='err_'+q.qid; err.className='error'; err.style.display='none'; card.appendChild(err);
-
+  const err=document.createElement('div'); err.id='err_'+q.qid; err.className='error'; err.style.display='none'; card.appendChild(err);
   card.appendChild(row);
   return card;
 }
-function nudgeShow(qid, msg){ const el=$('#err_'+qid); if(el){ el.textContent=msg; el.style.display='block'; } }
+function nudgeShow(qid,msg){ const el=$('#err_'+qid); if(el){ el.textContent=msg; el.style.display='block'; } }
 function nudgeClear(qid){ const el=$('#err_'+qid); if(el){ el.textContent=''; el.style.display='none'; } }
 
-function updateProgress(){
-  const required = SCHEMA.filter(q=>q.required);
-  const done = required.filter(q=>{
-    const v=STATE.answers[q.qid];
-    return !(v===undefined||v===null||v===''||(Array.isArray(v)&&v.length===0));
-  }).length;
-  $('#required_progress').textContent = `Required: ${done}/${required.length}`;
-}
-
 /********************
- * DRAFT + VALIDATE *
+ * VALIDATION + CONFIRM
  ********************/
-function saveDraft(){ localStorage.setItem(DRAFT_KEY, JSON.stringify(STATE)); }
-function loadDraft(){
-  try{
-    const raw=localStorage.getItem(DRAFT_KEY);
-    if(raw){
-      const s=JSON.parse(raw);
-      Object.assign(STATE.meta,s.meta||{});
-      Object.assign(STATE.answers,s.answers||{});
-      if('teacher' in s) STATE.teacher = s.teacher;
-    }
-  }catch(e){}
-}
 function validate(){
   let ok=true;
-  const mErrs = metaErrors(); showMetaErrors(mErrs);
-  if(Object.keys(mErrs).length) ok=false;
+  if(!$('#m_name').value.trim()) ok=false;
+  if(!$('#m_email').value.trim()) ok=false;
+  if(!$('#m_grade').value.trim()) ok=false;
+  if(!$('#m_date').value) ok=false;
+  if(!getSelectedTeacher()) { $('#err_teacher').style.display='block'; ok=false; }
 
-  SCHEMA.forEach(q=>{ if(!q.required) return; const v=STATE.answers[q.qid]; const miss = (v===undefined||v===null||v===''||(Array.isArray(v)&&v.length===0)); if(miss){ nudgeShow(q.qid,'Required'); ok=false; } else { nudgeClear(q.qid); } });
+  SCHEMA.forEach(q=>{ if(!q.required) return; const v=STATE.answers[q.qid]; const miss=(v===undefined||v===null||v===''||(Array.isArray(v)&&v.length===0)); if(miss){ nudgeShow(q.qid,'Required'); ok=false; } else { nudgeClear(q.qid); } });
   return ok;
 }
+function buildConfirmationHTML(){
+  const t=getSelectedTeacher();
+  const lines=[
+    `<div class=\"kv\"><b>Student</b><div>${$('#m_name').value||'—'}</div></div>`,
+    `<div class=\"kv\"><b>Email</b><div>${$('#m_email').value||'—'}</div></div>`,
+    `<div class=\"kv\"><b>Grade</b><div>${$('#m_grade').value||'—'}</div></div>`,
+    `<div class=\"kv\"><b>Date</b><div>${$('#m_date').value||'—'}</div></div>`,
+    `<div class=\"kv\"><b>Teacher of Record</b><div>${t? t.name : '—'}</div></div>`
+  ];
+  lines.push('<div style=\"height:8px\"></div>');
+  SCHEMA.forEach(q=>{
+    let ans='—';
+    const v=STATE.answers[q.qid];
+    if(q.type==='multi'){
+      const a=Array.isArray(v)?v:[];
+      const labels=a.map(id=> (q.options||[]).find(o=>o.oid===id)?.label || (id==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : ''));
+      ans = labels.length? labels.join(', ') : '—';
+    } else if(q.type==='single'){
+      ans = (q.options||[]).find(o=>o.oid===v)?.label || (v==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : '—');
+    } else {
+      ans = (v && String(v).trim()) ? String(v) : '—';
+    }
+    lines.push(`<div class=\"kv\"><b>${q.prompt}</b><div>${ans}</div></div>`);
+  });
+  return lines.join('');
+}
+function openConfirm(){ $('#confirm_content').innerHTML=buildConfirmationHTML(); $('#confirm_modal').style.display='flex'; }
+function closeConfirm(){ $('#confirm_modal').style.display='none'; }
 
 /********************
- * PDF (visible download)
+ * PDF + SUBMIT
  ********************/
 async function buildPDF(){
   const { jsPDF } = window.jspdf; const doc=new jsPDF({unit:'pt',format:'letter'});
-  const m=STATE.meta||{}; let y=48; const margin=48; const width=612;
+  const margin=48; let y=margin; const width=612;
+  const m={ name:$('#m_name').value, email:$('#m_email').value, grade:$('#m_grade').value, date:$('#m_date').value };
+  const teacher=getSelectedTeacher();
+
   doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.text('My Career SPIN', margin, y); y+=18;
   doc.setFont('helvetica','normal'); doc.setFontSize(11);
-  doc.text(`Student: ${m.name||''}  Email: ${m.email||''}  Grade: ${m.grade||''}`, margin, y); y+=14;
-  doc.text(`Date: ${m.date||''}  Timestamp: ${new Date().toISOString()}`, margin, y); y+=14;
-  const teacher=getSelectedTeacher();
-  doc.text(`Teacher of Record: ${teacher? teacher.name : ''}`, margin, y); y+=18;
+  doc.text(`Student: ${m.name}  Email: ${m.email}  Grade: ${m.grade}`, margin, y); y+=14;
+  doc.text(`Date: ${m.date}  Timestamp: ${new Date().toISOString()}`, margin, y); y+=14;
+  doc.text(`Teacher of Record: ${teacher? teacher.name : ''}`, margin, y); y+=12;
   doc.setDrawColor(229,231,235); doc.line(margin,y,width-margin,y); y+=10;
 
   SCHEMA.forEach(q=>{
@@ -381,154 +301,72 @@ async function buildPDF(){
   return doc.output('blob');
 }
 
-/********************
- * CONFIRMATION FLOW
- ********************/
-function buildConfirmationHTML(){
-  const m=STATE.meta||{}; const t=getSelectedTeacher();
-  const lines=[
-    `<div class=\"kv\"><b>Student</b><div>${m.name||'—'}</div></div>`,
-    `<div class=\"kv\"><b>Email</b><div>${m.email||'—'}</div></div>`,
-    `<div class=\"kv\"><b>Grade</b><div>${m.grade||'—'}</div></div>`,
-    `<div class=\"kv\"><b>Date</b><div>${m.date||'—'}</div></div>`,
-    `<div class=\"kv\"><b>Teacher of Record</b><div>${t? t.name : '—'}</div></div>`,
-    `<div class=\"kv\"><b>Timestamp</b><div>${new Date().toISOString()}</div></div>`
-  ];
-  lines.push('<div style=\"height:8px\"></div>');
-  SCHEMA.forEach(q=>{
-    let ans='—';
-    const v=STATE.answers[q.qid];
-    if(q.type==='multi'){
-      const a=Array.isArray(v)?v:[];
-      const labels=a.map(id=> (q.options||[]).find(o=>o.oid===id)?.label || (id==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : ''));
-      ans = labels.length? labels.join(', ') : '—';
-    } else if(q.type==='single'){
-      ans = (q.options||[]).find(o=>o.oid===v)?.label || (v==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : '—');
-    } else {
-      ans = (v && String(v).trim()) ? String(v) : '—';
-    }
-    lines.push(`<div class=\"kv\"><b>${q.prompt}</b><div>${ans}</div></div>`);
-  });
-  return lines.join('');
-}
-function openConfirm(){
-  $('#confirm_content').innerHTML = buildConfirmationHTML();
-  $('#confirm_modal').style.display='flex';
-}
-function closeConfirm(){ $('#confirm_modal').style.display='none'; }
-
-/********************
- * SUBMIT (modal → confirm → send)
- ********************/
 async function submitFlow(){
-  if(!validate()){
-    window.scrollTo({top:0,behavior:'smooth'});
-    return;
-  }
-  if(!getSelectedTeacher()){
-    $('#err_teacher').style.display='block';
-    const sel=$('#m_teacher'); if(sel) sel.scrollIntoView({behavior:'smooth',block:'center'});
-    return;
-  }
+  if(!validate()){ window.scrollTo({top:0,behavior:'smooth'}); return; }
   openConfirm();
 }
 
-function getSelectedTeacher(){
-  if(STATE.teacher===null || STATE.teacher===undefined || STATE.teacher==='') return null;
-  return TEACHERS[Number(STATE.teacher)] || null;
-}
-
-function formatSubjectDate(){
-  const d = new Date();
-  const yyyy=d.getFullYear(); const mm=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0');
-  return `${yyyy}-${mm}-${dd}`;
-}
+function getSubjectDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fileBase(){ return `My Career SPIN - ${($('#m_name').value||'Student').trim()} - ${new Date().getFullYear()}`; }
 
 async function doSubmit(){
   const teacher=getSelectedTeacher();
   if(!teacher){ $('#err_teacher').style.display='block'; closeConfirm(); return; }
 
-  // Disable submit buttons to prevent double sends
   const confirmBtn=$('#confirm_btn'), submitBtn=$('#submit');
-  if(confirmBtn) confirmBtn.disabled = true; if(submitBtn) submitBtn.disabled = true;
+  if(confirmBtn) confirmBtn.disabled=true; if(submitBtn) submitBtn.disabled=true;
 
-  const pdf = await buildPDF();
-  const base = fileBase();
-  const pdfFile = new File([pdf], base+'.pdf', {type:'application/pdf'});
+  const pdf=await buildPDF();
+  const base=fileBase();
+  const pdfFile=new File([pdf], base+'.pdf', {type:'application/pdf'});
   const payload={
     to: teacher.email,
-    subject: `My Career SPIN Submission - ${formatSubjectDate()}`,
-    student:{ lastFirst:(STATE.meta.name||'Student').split(' ').reverse().join('_'), student_name:STATE.meta.name||'', grade:STATE.meta.grade||'', survey_set:'Career', teacher_name:teacher.name },
-    files: [{ filename: pdfFile.name, mimeType: pdfFile.type, data: await toB64(pdfFile) }]
+    subject: `My Career SPIN Submission - ${getSubjectDate()}`,
+    student:{ student_name:$('#m_name').value, grade:$('#m_grade').value, teacher_name:teacher.name },
+    files:[{ filename: pdfFile.name, mimeType: pdfFile.type, data: await toB64(pdfFile) }]
   };
 
-  // Debug info (visible in DevTools console)
-  console.log('[submit] endpoint', GAS_ENDPOINT);
-  console.log('[submit] to', teacher.email, 'subject', payload.subject);
-  console.log('[submit] file', pdfFile.name, pdfFile.type);
-
   let sent=false; let respJson=null; let networkErr=null;
-
   try{
     const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),redirect:'follow',cache:'no-store'});
     try{ respJson=await r.json(); }catch{}
     sent = r.ok || !!respJson;
   }catch(e){ networkErr=e; }
-
   if(!sent){
     try{ await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),mode:'no-cors'}); sent=true; }catch(e){ networkErr=e; }
   }
 
   if(sent){
     $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
-    // Build a temporary URL so student can view the exact PDF they submitted
-    const url=URL.createObjectURL(pdf);
-    showToast('Survey submitted', url);
+    const url=URL.createObjectURL(pdf); showToast('Survey submitted', url);
   } else {
     console.error('Submit failed', networkErr, respJson);
     alert('Submission failed. Download your PDF and share manually.');
   }
   closeConfirm();
-  if(confirmBtn) confirmBtn.disabled = false; if(submitBtn) submitBtn.disabled = false;
+  if(confirmBtn) confirmBtn.disabled=false; if(submitBtn) submitBtn.disabled=false;
 }
 
 /********************
- * UTIL + MAIN       *
+ * UI UTIL
  ********************/
-function fileBase(){
-  const name=(STATE.meta.name||'Student').trim().replace(/\s+/g,' ');
-  const year = new Date().getFullYear();
-  return `My Career SPIN - ${name} - ${year}`;
+function showToast(message, linkHref){
+  const toast=$('#toast'); if(!toast) return;
+  $('#toast_msg').textContent=message||'Survey submitted';
+  const a=$('#toast_link'); if(a){ if(linkHref){ a.href=linkHref; a.style.display='inline'; } else { a.style.display='none'; } }
+  toast.style.display='flex'; setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000);
 }
-function trigger(blob, name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1200); }
+$('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.style.display='none'; });
 
-function main(){
-  loadDraft(); initMeta(); bindMeta(); initTeacher(); render();
-  $('#save').onclick = saveDraft;
-  $('#exp_pdf').onclick  = async()=> trigger(await buildPDF(), fileBase()+'.pdf');
-  $('#submit').onclick   = submitFlow;
-  $('#confirm_btn').onclick = doSubmit;
-  $('#back_btn').onclick    = closeConfirm;
-}
-
-// Start
+/********************
+ * START
+ ********************/
+function initTeacher(){ const sel=$('#m_teacher'); TEACHERS.forEach((t,i)=>{ const o=document.createElement('option'); o.value=String(i); o.textContent=t.name; sel.appendChild(o); }); }
+function main(){ initTeacher(); $('#m_date').value=todayISO(); render(); $('#submit').onclick=submitFlow; $('#confirm_btn').onclick=doSubmit; $('#back_btn').onclick=closeConfirm; }
 main();
-
-/********************
- * Lightweight Tests (console)
- ********************/
-(function runTests(){
-  const tests=[];
-  const assert=(name,cond)=>tests.push({name,pass:!!cond});
-  assert('hasFirstAndLast("John Smith")', hasFirstAndLast('John Smith')===true);
-  assert('hasFirstAndLast("John")', hasFirstAndLast('John')===false);
-  const d=formatSubjectDate(); assert('formatSubjectDate() looks like YYYY-MM-DD', /^\d{4}-\d{2}-\d{2}$/.test(d));
-  const fb=(()=>{STATE.meta.name='Jordan Smith'; return fileBase();})();
-  assert('fileBase includes name', fb.includes('Jordan Smith'));
-  console.log('[My Career SPIN tests]', tests);
-})();
 </script>
 </body>
 </html>
+
 
 
