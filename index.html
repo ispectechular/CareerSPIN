@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>My Career SPIN</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- jsPDF for PDF generation -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root{
@@ -26,7 +27,7 @@
     .meta{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin:12px 0 20px}
     .field{display:flex;flex-direction:column;gap:6px}
     .field span{font-size:12px;color:var(--muted)}
-    .field input{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff}
+    .field input, .field select{padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:#fff}
     .field input:focus, textarea:focus, select:focus{outline:2px solid var(--focus);outline-offset:2px}
 
     .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 8px 24px rgba(0,0,0,0.06);padding:16px;margin:12px 0}
@@ -56,9 +57,6 @@
     .modal .actions{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--border)}
     .kv{display:grid;grid-template-columns:200px 1fr;gap:8px;padding:8px 0;border-bottom:1px dashed var(--border)}
     .kv b{color:var(--muted)}
-
-    /* Teacher row in modal */
-    .teacher-row{display:grid;grid-template-columns:220px 1fr;gap:8px;align-items:center;padding:8px 18px;border-bottom:1px solid var(--border)}
   </style>
 </head>
 <body>
@@ -66,17 +64,23 @@
     <div class="topbar">
       <div>
         <h1>My Career SPIN</h1>
-        <div class="subnote">Complete all required items. Your teacher will receive your submission as a PDF (plus data files).</div>
+        <div class="subnote">Complete all required items. Your teacher will receive your submission as a PDF.</div>
       </div>
       <div class="progress" id="required_progress">Required: 0/0</div>
     </div>
 
     <!-- META -->
     <div class="meta">
-      <label class="field"><span class="req">Student Name (First & Last)</span><input id="m_name" type="text" placeholder="Ex. John Smith" required aria-describedby="name_help"><div id="name_help" class="helper">Please enter your first and last name.</div><div id="err_name" class="error" style="display:none"></div></label>
+      <label class="field"><span class="req">Student Name (First &amp; Last)</span><input id="m_name" type="text" placeholder="Ex. John Smith" required aria-describedby="name_help"><div id="name_help" class="helper">Please enter your first and last name.</div><div id="err_name" class="error" style="display:none"></div></label>
       <label class="field"><span class="req">Student Email</span><input id="m_email" type="email" placeholder="Ex. first.last@students.wawasee.k12.in.us" required><div id="err_email" class="error" style="display:none"></div></label>
       <label class="field"><span class="req">Grade</span><input id="m_grade" type="text" placeholder="Ex. 12th Grade" required><div id="err_grade" class="error" style="display:none"></div></label>
       <label class="field"><span class="req">Date</span><input id="m_date" type="date" required><div id="err_date" class="error" style="display:none"></div></label>
+      <label class="field"><span class="req">Teacher of Record</span>
+        <select id="m_teacher">
+          <option value="">Select your teacher…</option>
+        </select>
+        <div id="err_teacher" class="error" style="display:none">Please select your teacher.</div>
+      </label>
     </div>
 
     <!-- QUESTIONS -->
@@ -97,19 +101,10 @@
   <div class="modal-backdrop" id="confirm_modal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm_title">
       <header id="confirm_title">Review your responses</header>
-      <div class="teacher-row">
-        <div><b>Teacher of Record</b></div>
-        <div>
-          <select id="teacher_select">
-            <option value="" selected>Select your teacher…</option>
-          </select>
-          <div id="err_teacher" class="error" style="display:none">Please select your teacher.</div>
-        </div>
-      </div>
       <div class="content" id="confirm_content"></div>
       <div class="actions">
         <button id="back_btn" class="btn ghost">Go back and edit</button>
-        <button id="confirm_btn" class="btn">Confirm & Submit</button>
+        <button id="confirm_btn" class="btn">Confirm &amp; Submit</button>
       </div>
     </div>
   </div>
@@ -118,8 +113,8 @@
 /********************
  * CONFIG + STATE   *
  ********************/
-const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwn4Qwj9L8NbvoG1vhKIc_ZY_2f3wV7j-P1TLoFK5Z5R9cct2iZNNdzmvynypncwRBT/exec';
-const DRAFT_KEY = 'career_v6';
+const GAS_ENDPOINT = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+const DRAFT_KEY = 'career_v7';
 
 // Teacher roster (students see names only)
 const TEACHERS = [
@@ -152,7 +147,7 @@ const SCHEMA = [
    options:[{oid:'honest',label:'Honest'},{oid:'punctual',label:'Punctual'},{oid:'energetic',label:'Energetic'},{oid:'persistent',label:'Persistent'},{oid:'self_motivated',label:'Self-motivated'},{oid:'outgoing',label:'Outgoing'},{oid:'careful',label:'Careful'},{oid:'loyal',label:'Loyal'},{oid:'friendly',label:'Friendly'},{oid:'quiet',label:'Quiet'},{oid:'fast_learner',label:'Fast learner'},{oid:'orderly',label:'Orderly'},{oid:'dependable',label:'Dependable'},{oid:'polite',label:'Polite'},{oid:'strong_work_ethic',label:'Strong work ethic'},{oid:'positive',label:'Positive'},{oid:'cooperative',label:'Cooperative'},{oid:'interested_in_work',label:'Interested in work'}], other:true},
   {qid:'car.mindset', type:'single', prompt:'What type of mindset do you have when challenges come your way?', required:true,
    options:[{oid:'growth',label:'I can accept challenges and am persistent'},{oid:'fixed',label:'I get frustrated and give up'},{oid:'combination',label:'Sometimes embrace, sometimes give up'}]},
-  {qid:'car.success_strengths_text', type:'long_text', prompt:'What strengths will help you be successful in your desired career? List 3 or more.', helper:'Examples: I show up on time, I follow directions, I work well with others, I keep trying when tasks are hard.'},
+  {qid:'car.success_strengths_text', type:'long_text', prompt:'What strengths will help you be successful in your desired career? List 3 or more.', required:true, helper:'Examples: I show up on time, I follow directions, I work well with others, I keep trying when tasks are hard.'},
   {qid:'car.improvement_areas_text', type:'long_text', prompt:'What areas do you need to improve on to be successful in your career? List 3 or more.', required:true, helper:'Examples: organization, communication, time management, reading/writing/math, asking for help.'}
 ];
 
@@ -188,6 +183,13 @@ function bindMeta(){
     $(sel).addEventListener('input', e=>{STATE.meta[key]=e.target.value;saveDraft();updateProgress();clearMetaError(key);});
   });
 }
+function initTeacher(){
+  const sel=$('#m_teacher'); if(!sel) return;
+  sel.innerHTML='<option value="">Select your teacher…</option>';
+  TEACHERS.forEach((t,i)=>{ const o=document.createElement('option'); o.value=String(i); o.textContent=t.name; sel.appendChild(o); });
+  if(STATE.teacher!==null && STATE.teacher!==undefined && STATE.teacher!=='') sel.value=String(STATE.teacher);
+  sel.addEventListener('change', e=>{ STATE.teacher = e.target.value===''? null : Number(e.target.value); saveDraft(); $('#err_teacher').style.display='none'; });
+}
 function hasFirstAndLast(name){if(!name)return false;const parts=name.trim().split(/\s+/);return parts.length>=2;}
 function metaErrors(){
   const errs={};
@@ -195,6 +197,7 @@ function metaErrors(){
   if(!STATE.meta.email) errs.email='Email is required.';
   if(!STATE.meta.grade) errs.grade='Grade is required.';
   if(!STATE.meta.date)  errs.date='Date is required.';
+  if(!getSelectedTeacher()) errs.teacher='Please select your teacher.';
   return errs;
 }
 function showMetaErrors(errs){
@@ -202,6 +205,7 @@ function showMetaErrors(errs){
   $('#err_email').style.display= errs.email?'block':'none'; $('#err_email').textContent= errs.email||'';
   $('#err_grade').style.display= errs.grade?'block':'none'; $('#err_grade').textContent= errs.grade||'';
   $('#err_date').style.display = errs.date? 'block':'none'; $('#err_date').textContent = errs.date||'';
+  $('#err_teacher').style.display = errs.teacher? 'block':'none'; $('#err_teacher').textContent = errs.teacher||'';
 }
 function clearMetaError(key){
   if(key==='name') $('#err_name').style.display='none';
@@ -301,7 +305,17 @@ function updateProgress(){
  * DRAFT + VALIDATE *
  ********************/
 function saveDraft(){ localStorage.setItem(DRAFT_KEY, JSON.stringify(STATE)); }
-function loadDraft(){ try{ const raw=localStorage.getItem(DRAFT_KEY); if(raw){ const s=JSON.parse(raw); Object.assign(STATE.meta,s.meta||{}); Object.assign(STATE.answers,s.answers||{}); } }catch(e){} }
+function loadDraft(){
+  try{
+    const raw=localStorage.getItem(DRAFT_KEY);
+    if(raw){
+      const s=JSON.parse(raw);
+      Object.assign(STATE.meta,s.meta||{});
+      Object.assign(STATE.answers,s.answers||{});
+      if('teacher' in s) STATE.teacher = s.teacher;
+    }
+  }catch(e){}
+}
 function validate(){
   let ok=true;
   const mErrs = metaErrors(); showMetaErrors(mErrs);
@@ -309,77 +323,6 @@ function validate(){
 
   SCHEMA.forEach(q=>{ if(!q.required) return; const v=STATE.answers[q.qid]; const miss = (v===undefined||v===null||v===''||(Array.isArray(v)&&v.length===0)); if(miss){ nudgeShow(q.qid,'Required'); ok=false; } else { nudgeClear(q.qid); } });
   return ok;
-}
-
-/********************
- * EXPORTS (for submit packaging; only PDF button is shown to students)
- ********************/
-function buildJSON(){
-  const out={ meta:{...STATE.meta, timestamp_iso:new Date().toISOString()}, sections:[{id:'career',title:'Career',items:[]} ] };
-  SCHEMA.forEach(q=>{
-    const it={qid:q.qid,type:q.type,prompt:q.prompt};
-    if(q.options) it.options=q.options;
-    const v=STATE.answers[q.qid];
-    if(q.type==='multi'){
-      it.response=Array.isArray(v)?v:[];
-      it.response_labels=(it.response||[]).map(id=>(q.options||[]).find(o=>o.oid===id)?.label).filter(Boolean);
-      if((it.response||[]).includes('other')) it.other_text=STATE.answers[q.qid+'_other']||'';
-    } else if(q.type==='single'){
-      it.response=v||'';
-      it.response_label=(q.options||[]).find(o=>o.oid===v)?.label || (v==='other'?(STATE.answers[q.qid+'_other']||''):'');
-      if(v==='other') it.other_text=STATE.answers[q.qid+'_other']||'';
-    } else {
-      it.response=v||'';
-    }
-    out.sections[0].items.push(it);
-  });
-  return new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
-}
-function buildCSV(){
-  const meta=STATE.meta||{}; const ts=new Date().toISOString();
-  const header=['student_name','student_email','grade','timestamp_iso','section','qid','type','prompt','selected_option_ids','selected_option_labels','response_text'];
-  const rows=[header.join(',')];
-  SCHEMA.forEach(q=>{
-    const v=STATE.answers[q.qid]; let ids='',labels='',text='';
-    if(q.type==='multi'){
-      const a=Array.isArray(v)?v:[]; ids=a.join('|');
-      labels=a.map(id=>(q.options||[]).find(o=>o.oid===id)?.label||'').join('|');
-      if(a.includes('other')) labels+=(labels?'|':'')+'Other:'+(STATE.answers[q.qid+'_other']||'');
-    } else if(q.type==='single'){
-      ids=v||'';
-      labels=(q.options||[]).find(o=>o.oid===v)?.label|| (v==='other'?'Other:'+(STATE.answers[q.qid+'_other']||''):'');
-    } else { text=String(v||'').replaceAll('\n',' '); }
-    const row=[meta.name,meta.email,meta.grade,ts,'career',q.qid,q.type,q.prompt,ids,labels,text].map(s=> '"'+String(s??'').replaceAll('"','""')+'"').join(',');
-    rows.push(row);
-  });
-  return new Blob([rows.join('\n')],{type:'text/csv'});
-}
-function buildTXT(){
-  const lines=[]; const m=STATE.meta||{};
-  lines.push('BEGIN_CHATGPT_INGEST v=1.0');
-  lines.push(`STUDENT: name="${m.name||''}" email="${m.email||''}" grade="${m.grade||''}`+`"`);
-  lines.push(`TIMESTAMP: ${new Date().toISOString()}`);
-  lines.push(`SURVEY_SET: ${m.survey_set||''}`); lines.push('');
-  lines.push('#SECTION career | Career');
-  SCHEMA.forEach(q=>{
-    lines.push(`Q ${q.qid} (${q.type}): ${q.prompt}`);
-    if(q.options){ lines.push('OPTIONS: '+q.options.map(o=>`${o.oid}|${o.label}`).join(' ; ')); }
-    const v=STATE.answers[q.qid];
-    if(q.type==='multi'){
-      const a=Array.isArray(v)?v:[];
-      lines.push('SELECTED: '+a.map(id=>`${id}|${(q.options||[]).find(o=>o.oid===id)?.label||''}`).join(' ; '));
-      if(a.includes('other')) lines.push('OTHER_TEXT: '+(STATE.answers[q.qid+'_other']||''));
-    } else if(q.type==='single'){
-      const label=(q.options||[]).find(o=>o.oid===v)?.label || (v==='other'?(STATE.answers[q.qid+'_other']||''):'');
-      lines.push(`SELECTED: ${v||''}|${label}`);
-      if(v==='other') lines.push('OTHER_TEXT: '+(STATE.answers[q.qid+'_other']||''));
-    } else {
-      lines.push('ANSWER:'); lines.push(String(v||''));
-    }
-    lines.push('');
-  });
-  lines.push('END_CHATGPT_INGEST');
-  return new Blob([lines.join('\n')],{type:'text/plain'});
 }
 
 /********************
@@ -422,15 +365,16 @@ async function buildPDF(){
  * CONFIRMATION FLOW
  ********************/
 function buildConfirmationHTML(){
-  const m=STATE.meta||{};
+  const m=STATE.meta||{}; const t=getSelectedTeacher();
   const lines=[
     `<div class=\"kv\"><b>Student</b><div>${m.name||'—'}</div></div>`,
     `<div class=\"kv\"><b>Email</b><div>${m.email||'—'}</div></div>`,
     `<div class=\"kv\"><b>Grade</b><div>${m.grade||'—'}</div></div>`,
     `<div class=\"kv\"><b>Date</b><div>${m.date||'—'}</div></div>`,
+    `<div class=\"kv\"><b>Teacher of Record</b><div>${t? t.name : '—'}</div></div>`,
     `<div class=\"kv\"><b>Timestamp</b><div>${new Date().toISOString()}</div></div>`
   ];
-  lines.push('<div style="height:8px"></div>');
+  lines.push('<div style=\"height:8px\"></div>');
   SCHEMA.forEach(q=>{
     let ans='—';
     const v=STATE.answers[q.qid];
@@ -448,10 +392,6 @@ function buildConfirmationHTML(){
   return lines.join('');
 }
 function openConfirm(){
-  // Populate teacher dropdown each time (in case roster changes later)
-  const sel=$('#teacher_select'); sel.innerHTML='<option value="" selected>Select your teacher…</option>';
-  TEACHERS.forEach((t,i)=>{ const opt=document.createElement('option'); opt.value=String(i); opt.textContent=t.name; sel.appendChild(opt); });
-  $('#err_teacher').style.display='none';
   $('#confirm_content').innerHTML = buildConfirmationHTML();
   $('#confirm_modal').style.display='flex';
 }
@@ -465,12 +405,17 @@ async function submitFlow(){
     window.scrollTo({top:0,behavior:'smooth'});
     return;
   }
+  if(!getSelectedTeacher()){
+    $('#err_teacher').style.display='block';
+    const sel=$('#m_teacher'); if(sel) sel.scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
   openConfirm();
 }
 
 function getSelectedTeacher(){
-  const sel=$('#teacher_select'); const idx=sel.value;
-  if(idx==='') return null; return TEACHERS[Number(idx)] || null;
+  if(STATE.teacher===null || STATE.teacher===undefined || STATE.teacher==='') return null;
+  return TEACHERS[Number(STATE.teacher)] || null;
 }
 
 function formatSubjectDate(){
@@ -481,16 +426,11 @@ function formatSubjectDate(){
 
 async function doSubmit(){
   const teacher=getSelectedTeacher();
-  if(!teacher){ $('#err_teacher').style.display='block'; return; }
+  if(!teacher){ $('#err_teacher').style.display='block'; closeConfirm(); return; }
 
-  const [pdf,json,csv,txt] = [await buildPDF(), buildJSON(), buildCSV(), buildTXT()];
+  const pdf = await buildPDF();
   const base = fileBase();
-  const files=[
-    new File([pdf], base+'.pdf',  {type:'application/pdf'}),
-    new File([json], base+'.json', {type:'application/json'}),
-    new File([csv], base+'.csv',  {type:'text/csv'}),
-    new File([txt], base+'.txt',  {type:'text/plain'})
-  ];
+  const files=[ new File([pdf], base+'.pdf', {type:'application/pdf'}) ];
   const payload={
     to: teacher.email,
     subject: `My Career SPIN Submission - ${formatSubjectDate()}`,
@@ -498,7 +438,8 @@ async function doSubmit(){
     files: await Promise.all(files.map(async f=>({ filename:f.name, mimeType:f.type, data: await toB64(f) })))
   };
   try{
-    const r=await fetch(GAS_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    // No Content-Type header -> avoids CORS preflight
+    const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload)});
     try{ const j=await r.json(); console.log('GAS response', j); }catch{}
     $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
   }catch(e){
@@ -519,7 +460,7 @@ function fileBase(){
 function trigger(blob, name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1200); }
 
 function main(){
-  loadDraft(); initMeta(); bindMeta(); render();
+  loadDraft(); initMeta(); bindMeta(); initTeacher(); render();
   $('#save').onclick = saveDraft;
   $('#exp_pdf').onclick  = async()=> trigger(await buildPDF(), fileBase()+'.pdf');
   $('#submit').onclick   = submitFlow;
@@ -529,6 +470,21 @@ function main(){
 
 // Start
 main();
+
+/********************
+ * Lightweight Tests (console)
+ ********************/
+(function runTests(){
+  const tests=[];
+  const assert=(name,cond)=>tests.push({name,pass:!!cond});
+  assert('hasFirstAndLast("John Smith")', hasFirstAndLast('John Smith')===true);
+  assert('hasFirstAndLast("John")', hasFirstAndLast('John')===false);
+  const d=formatSubjectDate(); assert('formatSubjectDate() looks like YYYY-MM-DD', /^\d{4}-\d{2}-\d{2}$/.test(d));
+  const fb=(()=>{STATE.meta.name='Jordan Smith'; return fileBase();})();
+  assert('fileBase includes name', fb.includes('Jordan Smith'));
+  console.log('[My Career SPIN tests]', tests);
+})();
 </script>
 </body>
 </html>
+
