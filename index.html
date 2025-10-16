@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>My Career SPIN</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">// Expose handlers globally for inline onclick fallback
+window.submitFlow = submitFlow; window.doSubmit = doSubmit; window.closeConfirm = closeConfirm;
+</script>
   <style>
     :root{
       --brandPurple:#4A7A92;
@@ -76,7 +78,7 @@
     <div id="qroot"></div>
 
     <!-- ACTIONS -->
-    <div class="bar"><button id="submit" class="btn">Submit</button></div>
+    <div class="bar"><button id="submit" class="btn" onclick="submitFlow()">Submit</button></div>
     <div id="status" class="helper" aria-live="polite"></div>
 
     <!-- Toast -->
@@ -302,6 +304,7 @@ async function buildPDF(){
 }
 
 async function submitFlow(){
+  console.log('[UI] submitFlow called');
   if(!validate()){ window.scrollTo({top:0,behavior:'smooth'}); return; }
   openConfirm();
 }
@@ -396,6 +399,7 @@ if(document.readyState==='loading'){
 </script>
 </body>
 </html>
+
 
 
 
