@@ -149,6 +149,14 @@ const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const toB64=blob=>new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result.split(',')[1]);fr.readAsDataURL(blob);});
+// Ensure teacher lookup exists (fixes ReferenceError)
+function getSelectedTeacher(){
+  const sel=document.querySelector('#m_teacher');
+  if(!sel) return null;
+  const idx=sel.value;
+  if(idx===''||isNaN(Number(idx))) return null;
+  return TEACHERS[Number(idx)] || null;
+}
 
 /********************
  * RENDER            *
