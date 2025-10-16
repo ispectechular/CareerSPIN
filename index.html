@@ -437,16 +437,36 @@ async function doSubmit(){
     student:{ lastFirst:(STATE.meta.name||'Student').split(' ').reverse().join('_'), student_name:STATE.meta.name||'', grade:STATE.meta.grade||'', survey_set:'Career', teacher_name:teacher.name },
     files: await Promise.all(files.map(async f=>({ filename:f.name, mimeType:f.type, data: await toB64(f) })))
   };
+
+  // Debug info (visible in DevTools console)
+  console.log('[submit] endpoint', GAS_ENDPOINT);
+  console.log('[submit] to', teacher.email, 'subject', payload.subject);
+  console.log('[submit] file', files[0].name, files[0].type);
+
+  let sent=false; let respJson=null; let networkErr=null;
+
+  // Try normal CORS-friendly POST first (no custom headers)
   try{
-    // No Content-Type header -> avoids CORS preflight
-    const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload)});
-    try{ const j=await r.json(); console.log('GAS response', j); }catch{}
-    $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
-  }catch(e){
-    console.error(e); alert('Submission failed. Download your PDF and share manually.');
-  } finally {
-    closeConfirm();
+    const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),redirect:'follow',cache:'no-store'});
+    try{ respJson=await r.json(); }catch{}
+    sent = r.ok || !!respJson; // Apps Script usually returns 200; json may fail if opaque
+  }catch(e){ networkErr=e; }
+
+  // Fallback for strict environments (file:// origins, etc.)
+  if(!sent){
+    try{
+      await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),mode:'no-cors'});
+      sent=true; // opaque response; assume delivered
+    }catch(e){ networkErr=e; }
   }
+
+  if(sent){
+    $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
+  } else {
+    console.error('Submit failed', networkErr, respJson);
+    alert('Submission failed. Download your PDF and share manually.');
+  }
+  closeConfirm();
 }
 
 /********************
