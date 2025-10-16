@@ -6,7 +6,17 @@
   <title>My Career SPIN</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
   <!-- jsPDF for PDF generation -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">function showToast(message, linkHref){
+  const toast=$('#toast'); if(!toast) return;
+  $('#toast_msg').textContent = message || 'Survey submitted';
+  const a=$('#toast_link'); if(a){ if(linkHref){ a.href=linkHref; a.style.display='inline'; } else { a.style.display='none'; } }
+  toast.style.display='flex';
+  // Auto-hide after 10s
+  setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000);
+}
+$('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.style.display='none'; });
+
+</script>
   <style>
     :root{
       --brandPurple:#4A7A92;  /* Title + section headings */
@@ -57,7 +67,10 @@
     .modal .actions{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--border)}
     .kv{display:grid;grid-template-columns:200px 1fr;gap:8px;padding:8px 0;border-bottom:1px dashed var(--border)}
     .kv b{color:var(--muted)}
-  </style>
+  .toast{position:fixed;right:16px;bottom:16px;display:none;align-items:center;gap:10px;background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.15);z-index:9999}
+.toast a{font-weight:700;text-decoration:underline;color:#065f46}
+.toast .close{margin-left:6px;border:none;background:transparent;cursor:pointer;color:#065f46;font-weight:700}
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -95,6 +108,11 @@
       <button id="submit" class="btn">Submit</button>
     </div>
     <div id="status" class="helper" aria-live="polite"></div>
+    <div id="toast" class="toast" role="status" aria-live="polite">
+      <span id="toast_msg">Survey submitted.</span>
+      <a id="toast_link" href="#" target="_blank" rel="noopener">View your PDF</a>
+      <button class="close" id="toast_close" aria-label="Dismiss notification">×</button>
+    </div>
   </div>
 
   <!-- Confirmation Modal -->
@@ -113,7 +131,7 @@
 /********************
  * CONFIG + STATE   *
  ********************/
-const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbzO1IooTr1pSD-u4wzccMiad6FcQFtVYUkCQ5LPJJ9ZkGRxIjBbm4VzKlL3FAcaF5dO/exec';
+const GAS_ENDPOINT = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const DRAFT_KEY = 'career_v7';
 
 // Teacher roster (students see names only)
@@ -334,7 +352,9 @@ async function buildPDF(){
   doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.text('My Career SPIN', margin, y); y+=18;
   doc.setFont('helvetica','normal'); doc.setFontSize(11);
   doc.text(`Student: ${m.name||''}  Email: ${m.email||''}  Grade: ${m.grade||''}`, margin, y); y+=14;
-  doc.text(`Date: ${m.date||''}  Timestamp: ${new Date().toISOString()}`, margin, y); y+=18;
+  doc.text(`Date: ${m.date||''}  Timestamp: ${new Date().toISOString()}`, margin, y); y+=14;
+  const teacher=getSelectedTeacher();
+  doc.text(`Teacher of Record: ${teacher? teacher.name : ''}`, margin, y); y+=18;
   doc.setDrawColor(229,231,235); doc.line(margin,y,width-margin,y); y+=10;
 
   SCHEMA.forEach(q=>{
@@ -428,45 +448,48 @@ async function doSubmit(){
   const teacher=getSelectedTeacher();
   if(!teacher){ $('#err_teacher').style.display='block'; closeConfirm(); return; }
 
+  // Disable submit buttons to prevent double sends
+  const confirmBtn=$('#confirm_btn'), submitBtn=$('#submit');
+  if(confirmBtn) confirmBtn.disabled = true; if(submitBtn) submitBtn.disabled = true;
+
   const pdf = await buildPDF();
   const base = fileBase();
-  const files=[ new File([pdf], base+'.pdf', {type:'application/pdf'}) ];
+  const pdfFile = new File([pdf], base+'.pdf', {type:'application/pdf'});
   const payload={
     to: teacher.email,
     subject: `My Career SPIN Submission - ${formatSubjectDate()}`,
     student:{ lastFirst:(STATE.meta.name||'Student').split(' ').reverse().join('_'), student_name:STATE.meta.name||'', grade:STATE.meta.grade||'', survey_set:'Career', teacher_name:teacher.name },
-    files: await Promise.all(files.map(async f=>({ filename:f.name, mimeType:f.type, data: await toB64(f) })))
+    files: [{ filename: pdfFile.name, mimeType: pdfFile.type, data: await toB64(pdfFile) }]
   };
 
   // Debug info (visible in DevTools console)
   console.log('[submit] endpoint', GAS_ENDPOINT);
   console.log('[submit] to', teacher.email, 'subject', payload.subject);
-  console.log('[submit] file', files[0].name, files[0].type);
+  console.log('[submit] file', pdfFile.name, pdfFile.type);
 
   let sent=false; let respJson=null; let networkErr=null;
 
-  // Try normal CORS-friendly POST first (no custom headers)
   try{
     const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),redirect:'follow',cache:'no-store'});
     try{ respJson=await r.json(); }catch{}
-    sent = r.ok || !!respJson; // Apps Script usually returns 200; json may fail if opaque
+    sent = r.ok || !!respJson;
   }catch(e){ networkErr=e; }
 
-  // Fallback for strict environments (file:// origins, etc.)
   if(!sent){
-    try{
-      await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),mode:'no-cors'});
-      sent=true; // opaque response; assume delivered
-    }catch(e){ networkErr=e; }
+    try{ await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),mode:'no-cors'}); sent=true; }catch(e){ networkErr=e; }
   }
 
   if(sent){
     $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
+    // Build a temporary URL so student can view the exact PDF they submitted
+    const url=URL.createObjectURL(pdf);
+    showToast('Survey submitted', url);
   } else {
     console.error('Submit failed', networkErr, respJson);
     alert('Submission failed. Download your PDF and share manually.');
   }
   closeConfirm();
+  if(confirmBtn) confirmBtn.disabled = false; if(submitBtn) submitBtn.disabled = false;
 }
 
 /********************
@@ -507,4 +530,5 @@ main();
 </script>
 </body>
 </html>
+
 
