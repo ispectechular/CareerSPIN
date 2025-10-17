@@ -55,6 +55,7 @@
     <h1>My Career SPIN</h1>
     <div class="subnote">Complete all required items. Your teacher will receive your submission as a PDF.</div>
 
+    <!-- META -->
     <div class="meta">
       <label class="field"><span class="req">Student Name (First &amp; Last)</span><input id="m_name" type="text" placeholder="Ex. John Smith" required></label>
       <label class="field"><span class="req">Student Email</span><input id="m_email" type="email" placeholder="Ex. first.last@students.wawasee.k12.in.us" required></label>
@@ -66,11 +67,14 @@
       </label>
     </div>
 
+    <!-- QUESTIONS -->
     <div id="qroot"></div>
 
+    <!-- ACTIONS -->
     <div class="bar"><button id="submit" class="btn">Submit</button></div>
     <div id="status" class="helper" aria-live="polite"></div>
 
+    <!-- Toast -->
     <div id="toast" class="toast" role="status" aria-live="polite">
       <span id="toast_msg">Survey submitted.</span>
       <a id="toast_link" href="#" target="_blank" rel="noopener">View your PDF</a>
@@ -116,7 +120,9 @@
 /********************
  * CONFIG + STATE   *
  ********************/
+const SURVEY_TITLE = 'My Career SPIN'; // <-- change for other surveys
 const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxqZqobN7NZCxe1GMFioykj7wUEWMs30dF8NxTIRBUwKAlll1BuQNZshYqRJGpDlS2p/exec';
+
 const TEACHERS=[
   {name:'Jesse Ritter',email:'jritter@wawasee.k12.in.us'},
   {name:'Christine Troutman',email:'ctroutman@wawasee.k12.in.us'},
@@ -124,10 +130,11 @@ const TEACHERS=[
   {name:'David Shipley',email:'dshipley@wawasee.k12.in.us'},
   {name:'Wendy Ortiz',email:'wortiz@wawasee.k12.in.us'}
 ];
+
 const DRAFT_KEY='career_spin_autosave_v1';
 const STATE={meta:{},answers:{}};
 
-// Questions
+// Questions (same as current Career; customize for other surveys)
 const SCHEMA=[
   {qid:'car.target_career', type:'text',  prompt:'What career are you most interested in?', required:true, helper:'Examples: electrician, nurse, graphic designer, welder, teacher, mechanic'},
   {qid:'car.career_interest_reason', type:'long_text', prompt:'What makes you interested in this career?', required:true, helper:'Tip: Mention a class you liked, a family member’s job, a hobby, or a strength you have.'},
@@ -163,6 +170,27 @@ const toB64=blob=>new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(
 function saveDraft(){ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(STATE)); }catch(e){} }
 function loadDraft(){ try{ const raw=localStorage.getItem(DRAFT_KEY); if(!raw) return; const s=JSON.parse(raw); STATE.meta=s.meta||{}; STATE.answers=s.answers||{}; }catch(e){} }
 function getSelectedTeacher(){ const sel=$('#m_teacher'); if(!sel) return null; const idx=sel.value; if(idx===''||isNaN(Number(idx))) return null; return TEACHERS[Number(idx)]||null; }
+function initialAndLast(name){ if(!name) return ''; const parts=name.trim().split(/\s+/); const first=parts[0]||''; const last=parts.slice(1).join(' ')||''; const fi=first? first[0].toUpperCase()+'.' : ''; return (fi+(last? ' '+last : '')).trim(); }
+
+// Build readable answer set for email body + structured array
+function buildAnswersForEmail(){
+  const lines=[]; const detailed=[];
+  SCHEMA.forEach(q=>{
+    let ans='—'; const v=STATE.answers[q.qid];
+    if(q.type==='multi'){
+      const arr=Array.isArray(v)?v:[];
+      const labels=arr.map(id=> (q.options||[]).find(o=>o.oid===id)?.label || (id==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : ''));
+      ans = labels.length? labels.join(', ') : '—';
+    }else if(q.type==='single'){
+      ans = (q.options||[]).find(o=>o.oid===v)?.label || (v==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : '—');
+    }else{
+      ans = (v && String(v).trim()) ? String(v) : '—';
+    }
+    lines.push(`${q.prompt}\n  - ${ans}`);
+    detailed.push({qid:q.qid,prompt:q.prompt,answer:ans});
+  });
+  return { summaryText: lines.join('\n\n'), detailed };
+}
 
 /********************
  * RENDER            *
@@ -195,7 +223,12 @@ function nudgeClear(qid){ const el=$('#err_'+qid); if(el){ el.textContent=''; el
  * VALIDATION + CONFIRM
  ********************/
 function validate(){
-  let ok=true; if(!$('#m_name').value.trim()) ok=false; if(!$('#m_email').value.trim()) ok=false; if(!$('#m_grade').value.trim()) ok=false; if(!$('#m_date').value) ok=false; if(!getSelectedTeacher()) { $('#err_teacher').style.display='block'; ok=false; }
+  let ok=true;
+  if(!$('#m_name').value.trim()) ok=false;
+  if(!$('#m_email').value.trim()) ok=false;
+  if(!$('#m_grade').value.trim()) ok=false;
+  if(!$('#m_date').value) ok=false;
+  if(!getSelectedTeacher()) { $('#err_teacher').style.display='block'; ok=false; }
   SCHEMA.forEach(q=>{ if(!q.required) return; const v=STATE.answers[q.qid]; const miss=(v===undefined||v===null||v===''||(Array.isArray(v)&&v.length===0)); if(miss){ nudgeShow(q.qid,'Required'); ok=false; } else { nudgeClear(q.qid); } });
   return ok;
 }
@@ -209,7 +242,18 @@ function buildConfirmationHTML(){
     `<div class=\"kv\"><b>Teacher of Record</b><div>${t? t.name : '—'}</div></div>`
   ];
   lines.push('<div style=\"height:8px\"></div>');
-  SCHEMA.forEach(q=>{ let ans='—'; const v=STATE.answers[q.qid]; if(q.type==='multi'){ const a=Array.isArray(v)?v:[]; const labels=a.map(id=> (q.options||[]).find(o=>o.oid===id)?.label || (id==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : '')); ans = labels.length? labels.join(', ') : '—'; } else if(q.type==='single'){ ans = (q.options||[]).find(o=>o.oid===v)?.label || (v==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : '—'); } else { ans = (v && String(v).trim()) ? String(v) : '—'; } lines.push(`<div class=\"kv\"><b>${q.prompt}</b><div>${ans}</div></div>`); });
+  SCHEMA.forEach(q=>{
+    let ans='—'; const v=STATE.answers[q.qid];
+    if(q.type==='multi'){
+      const a=Array.isArray(v)?v:[]; const labels=a.map(id=> (q.options||[]).find(o=>o.oid===id)?.label || (id==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : ''));
+      ans = labels.length? labels.join(', ') : '—';
+    } else if(q.type==='single'){
+      ans = (q.options||[]).find(o=>o.oid===v)?.label || (v==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : '—');
+    } else {
+      ans = (v && String(v).trim()) ? String(v) : '—';
+    }
+    lines.push(`<div class=\"kv\"><b>${q.prompt}</b><div>${ans}</div></div>`);
+  });
   return lines.join('');
 }
 function openConfirm(){ $('#confirm_content').innerHTML=buildConfirmationHTML(); $('#confirm_modal').style.display='flex'; }
@@ -223,40 +267,115 @@ async function buildPDF(){
   const margin=48; let y=margin; const width=612;
   const m={ name:$('#m_name').value, email:$('#m_email').value, grade:$('#m_grade').value, date:$('#m_date').value };
   const teacher=getSelectedTeacher();
-  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.text('My Career SPIN', margin, y); y+=18;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(16); doc.text(SURVEY_TITLE, margin, y); y+=18;
   doc.setFont('helvetica','normal'); doc.setFontSize(11);
   doc.text(`Student: ${m.name}  Email: ${m.email}  Grade: ${m.grade}`, margin, y); y+=14;
   doc.text(`Date: ${m.date}  Timestamp: ${new Date().toISOString()}`, margin, y); y+=14;
   doc.text(`Teacher of Record: ${teacher? teacher.name : ''}`, margin, y); y+=12;
   doc.setDrawColor(229,231,235); doc.line(margin,y,width-margin,y); y+=10;
-  SCHEMA.forEach(q=>{ doc.setFont('helvetica','bold'); doc.setFontSize(11); const qp = doc.splitTextToSize(q.prompt, width - margin*2); if(y + qp.length*13 > 760){ doc.addPage(); y=margin; } doc.text(qp, margin, y); y += qp.length*13 + 4; doc.setFont('helvetica','normal'); const v=STATE.answers[q.qid]; if(q.type==='multi'){ const a=Array.isArray(v)?v:[]; const labels=a.map(id=> (q.options||[]).find(o=>o.oid===id)?.label || (id==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : '')); if(labels.length===0){ if(y+13>760){ doc.addPage(); y=margin; } doc.text('—', margin, y); y+=13; } labels.forEach(l=>{ const t=doc.splitTextToSize('• '+l, width - margin*2); if(y + t.length*13 > 760){ doc.addPage(); y=margin; } doc.text(t, margin, y); y+=t.length*13; }); } else if(q.type==='single'){ let label=(q.options||[]).find(o=>o.oid===v)?.label||''; if(v==='other') label='Other: '+(STATE.answers[q.qid+'_other']||''); if(y+13>760){ doc.addPage(); y=margin; } doc.text(label||'—', margin, y); y+=13; } else { const t=doc.splitTextToSize(String(v||'—'), width - margin*2); if(y + t.length*13 > 760){ doc.addPage(); y=margin; } doc.text(t, margin, y); y+=t.length*13; } y+=8; });
+
+  SCHEMA.forEach(q=>{
+    doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    const qp = doc.splitTextToSize(q.prompt, width - margin*2);
+    if(y + qp.length*13 > 760){ doc.addPage(); y=margin; }
+    doc.text(qp, margin, y); y += qp.length*13 + 4;
+
+    doc.setFont('helvetica','normal');
+    const v=STATE.answers[q.qid];
+    if(q.type==='multi'){
+      const a=Array.isArray(v)?v:[]; const labels=a.map(id=> (q.options||[]).find(o=>o.oid===id)?.label || (id==='other' ? 'Other: '+(STATE.answers[q.qid+'_other']||'') : ''));
+      if(labels.length===0){ if(y+13>760){ doc.addPage(); y=margin; } doc.text('—', margin, y); y+=13; }
+      labels.forEach(l=>{ const t=doc.splitTextToSize('• '+l, width - margin*2); if(y + t.length*13 > 760){ doc.addPage(); y=margin; } doc.text(t, margin, y); y+=t.length*13; });
+    } else if(q.type==='single'){
+      let label=(q.options||[]).find(o=>o.oid===v)?.label||''; if(v==='other') label='Other: '+(STATE.answers[q.qid+'_other']||'');
+      if(y+13>760){ doc.addPage(); y=margin; } doc.text(label||'—', margin, y); y+=13;
+    } else {
+      const t=doc.splitTextToSize(String(v||'—'), width - margin*2); if(y + t.length*13 > 760){ doc.addPage(); y=margin; } doc.text(t, margin, y); y+=t.length*13;
+    }
+    y+=8;
+  });
   return doc.output('blob');
 }
 
 function getSubjectDate(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-function fileBase(){ return `My Career SPIN - ${($('#m_name').value||'Student').trim()} - ${new Date().getFullYear()}`; }
+function fileBase(){ return `${SURVEY_TITLE} - ${($('#m_name').value||'Student').trim()} - ${new Date().getFullYear()}`; }
 
 async function doSubmit(){
   const teacher=getSelectedTeacher(); if(!teacher){ $('#err_teacher').style.display='block'; closeConfirm(); return; }
   const confirmBtn=$('#confirm_btn'), submitBtn=$('#submit'); if(confirmBtn) confirmBtn.disabled=true; if(submitBtn) submitBtn.disabled=true;
+
   showLoading('Generating PDF and sending to your teacher…');
   try{
-    const pdf=await buildPDF(); const base=fileBase(); const pdfFile=new File([pdf], base+'.pdf', {type:'application/pdf'});
-    const payload={ to: teacher.email, subject: `My Career SPIN Submission - ${getSubjectDate()}`, student:{ student_name:$('#m_name').value, grade:$('#m_grade').value, teacher_name:teacher.name }, files:[{ filename: pdfFile.name, mimeType: pdfFile.type, data: await toB64(pdfFile) }] };
+    const pdf=await buildPDF();
+    const base=fileBase();
+    const pdfFile=new File([pdf], base+'.pdf', {type:'application/pdf'});
+
+    // Build subject/body data for Apps Script
+    const answersForEmail = buildAnswersForEmail();
+    const studentName = $('#m_name').value;
+    const subjectTag = `${initialAndLast(studentName)} Submitted: ${SURVEY_TITLE}`;
+
+    const payload={
+      survey_title: SURVEY_TITLE,
+      to: teacher.email,
+      subject: subjectTag, // e.g., "J. Smith Submitted: My Career SPIN"
+      student:{
+        student_name: studentName,
+        grade: $('#m_grade').value,
+        teacher_name: teacher.name,
+        date: $('#m_date').value
+      },
+      email_body_overrides:{
+        intro: `A new submission was received for ${SURVEY_TITLE}.`
+      },
+      answers: answersForEmail.detailed,
+      answers_summary: answersForEmail.summaryText,
+      files:[{ filename: pdfFile.name, mimeType: pdfFile.type, data: await toB64(pdfFile) }]
+    };
+
     let sent=false; let respJson=null; let networkErr=null;
-    try{ const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),redirect:'follow',cache:'no-store'}); try{ respJson=await r.json(); }catch{} sent = r.ok || !!respJson; }catch(e){ networkErr=e; }
-    if(!sent){ try{ await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),mode:'no-cors'}); sent=true; }catch(e){ networkErr=e; } }
-    if(sent){ $('#status').textContent=`Submitted! Sent to ${teacher.name}.`; const url=URL.createObjectURL(pdf); showToast('Survey submitted', url); openSuccess(url); }
-    else { console.error('Submit failed', networkErr, respJson); alert('Submission failed. Download your PDF and share manually.'); }
-  } finally { hideLoading(); closeConfirm(); if(confirmBtn) confirmBtn.disabled=false; if(submitBtn) submitBtn.disabled=false; }
+    try{
+      const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),redirect:'follow',cache:'no-store'});
+      try{ respJson=await r.json(); }catch{}
+      sent = r.ok || !!respJson;
+    }catch(e){ networkErr=e; }
+
+    if(!sent){
+      try{ await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),mode:'no-cors'}); sent=true; }catch(e){ networkErr=e; }
+    }
+
+    if(sent){
+      $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
+      const url=URL.createObjectURL(pdf);
+      showToast('Survey submitted', url);
+      openSuccess(url);
+      // Optional: clear draft after successful submit
+      // localStorage.removeItem(DRAFT_KEY);
+    } else {
+      console.error('Submit failed', networkErr, respJson);
+      alert('Submission failed. Download your PDF and share manually.');
+    }
+  } finally {
+    hideLoading();
+    closeConfirm();
+    if(confirmBtn) confirmBtn.disabled=false; if(submitBtn) submitBtn.disabled=false;
+  }
 }
 
-function submitFlow(){ console.log('[UI] Submit clicked'); if(!validate()){ window.scrollTo({top:0,behavior:'smooth'}); return; } openConfirm(); }
+function submitFlow(){ if(!validate()){ window.scrollTo({top:0,behavior:'smooth'}); return; } openConfirm(); }
 
 /********************
  * UI UTIL
  ********************/
-function showToast(message, linkHref){ const toast=$('#toast'); if(!toast) return; $('#toast_msg').textContent=message||'Survey submitted'; const a=$('#toast_link'); if(a){ if(linkHref){ a.href=linkHref; a.style.display='inline'; } else { a.style.display='none'; } } toast.style.display='flex'; setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000); }
+function showToast(message, linkHref){
+  const toast=$('#toast'); if(!toast) return;
+  $('#toast_msg').textContent=message||'Survey submitted';
+  const a=$('#toast_link');
+  if(a){ if(linkHref){ a.href=linkHref; a.style.display='inline'; } else { a.style.display='none'; } }
+  toast.style.display='flex';
+  setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000);
+}
 function showLoading(text){ const el=$('#loading'); if(!el) return; $('#loading_text').textContent=text||'Processing…'; el.style.display='flex'; }
 function hideLoading(){ const el=$('#loading'); if(!el) return; el.style.display='none'; }
 function openSuccess(pdfUrl){ const sm=$('#success_modal'); const a=$('#success_pdf_link'); if(a && pdfUrl){ a.href=pdfUrl; } if(sm){ sm.style.display='flex'; } }
@@ -269,23 +388,34 @@ function main(){
   try{
     loadDraft();
     // Prefill meta
-    if(STATE.meta){ if(STATE.meta.name) $('#m_name').value=STATE.meta.name; if(STATE.meta.email) $('#m_email').value=STATE.meta.email; if(STATE.meta.grade) $('#m_grade').value=STATE.meta.grade; if(STATE.meta.date) $('#m_date').value=STATE.meta.date; else $('#m_date').value=todayISO(); }
-    else { $('#m_date').value=todayISO(); }
-    initTeacher(); if(STATE.meta && STATE.meta.teacherIndex!==undefined){ const sel=$('#m_teacher'); if(sel) sel.value=String(STATE.meta.teacherIndex); }
+    if(STATE.meta){
+      if(STATE.meta.name) $('#m_name').value=STATE.meta.name;
+      if(STATE.meta.email) $('#m_email').value=STATE.meta.email;
+      if(STATE.meta.grade) $('#m_grade').value=STATE.meta.grade;
+      if(STATE.meta.date) $('#m_date').value=STATE.meta.date; else $('#m_date').value=todayISO();
+    } else { $('#m_date').value=todayISO(); }
+
+    initTeacher();
+    if(STATE.meta && STATE.meta.teacherIndex!==undefined){ const sel=$('#m_teacher'); if(sel) sel.value=String(STATE.meta.teacherIndex); }
+
     // Bind meta autosave
-    [['#m_name','name'],['#m_email','email'],['#m_grade','grade'],['#m_date','date']].forEach(([sel,key])=>{ const el=$(sel); if(!el) return; el.addEventListener('input', e=>{ STATE.meta[key]=e.target.value; saveDraft(); }); });
+    [['#m_name','name'],['#m_email','email'],['#m_grade','grade'],['#m_date','date']].forEach(([sel,key])=>{
+      const el=$(sel); if(!el) return; el.addEventListener('input', e=>{ STATE.meta[key]=e.target.value; saveDraft(); });
+    });
     const teacherSel=$('#m_teacher'); if(teacherSel){ teacherSel.addEventListener('change', e=>{ STATE.meta.teacherIndex = e.target.value===''? undefined : Number(e.target.value); saveDraft(); }); }
+
     render();
+
     // Wire actions
     const submitBtn=$('#submit'); const confirmBtn=$('#confirm_btn'); const backBtn=$('#back_btn'); const successClose=$('#success_close');
     if(submitBtn) submitBtn.addEventListener('click', submitFlow);
     if(confirmBtn) confirmBtn.addEventListener('click', doSubmit);
     if(backBtn) backBtn.addEventListener('click', closeConfirm);
     if(successClose) successClose.addEventListener('click', ()=>{ $('#success_modal').style.display='none'; });
-    // Test hooks
-    console.assert(typeof getSelectedTeacher==='function','getSelectedTeacher exists');
-    console.assert(typeof validate==='function','validate exists');
+
+    // Quick sanity checks
     console.assert(typeof buildPDF==='function','buildPDF exists');
+    console.assert(typeof doSubmit==='function','doSubmit exists');
     console.log('[Init] Ready');
   }catch(e){ console.error('[Init error]', e); alert('There was a script error initializing the page. Please reload.'); }
 }
@@ -296,7 +426,5 @@ document.getElementById('toast_close')?.addEventListener('click',()=>{ const t=d
 </script>
 </body>
 </html>
-
-
 
 
