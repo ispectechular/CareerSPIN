@@ -54,7 +54,11 @@
     .modal .actions{display:flex;justify-content:flex-end;gap:10px;padding:12px 18px;border-top:1px solid var(--border)}
     .kv{display:grid;grid-template-columns:200px 1fr;gap:8px;padding:8px 0;border-bottom:1px dashed var(--border)}
     .kv b{color:var(--muted)}
-  </style>
+  .loading-backdrop{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(255,255,255,.75);backdrop-filter:saturate(1.2) blur(2px);z-index:10000}
+.loading-box{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.15);padding:20px 22px;display:flex;gap:12px;align-items:center}
+.spinner{width:24px;height:24px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:var(--accent);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -88,6 +92,14 @@
     </div>
   </div>
 
+  <!-- Processing overlay -->
+  <div id="loading" class="loading-backdrop" role="alert" aria-live="assertive">
+    <div class="loading-box">
+      <div class="spinner" aria-hidden="true"></div>
+      <div id="loading_text">Submitting… please wait</div>
+    </div>
+  </div>
+
   <!-- Confirmation Modal -->
   <div class="modal-backdrop" id="confirm_modal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm_title">
@@ -118,7 +130,7 @@
 /********************
  * CONFIG + STATE   *
  ********************/
-const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxqZqobN7NZCxe1GMFioykj7wUEWMs30dF8NxTIRBUwKAlll1BuQNZshYqRJGpDlS2p/exec';
+const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbw7IOEyDntRpvBgCbWgDg0EUKzGhCrARjIfRDsls_IWWkDVkQoe6E5A7RkM1A_40_c/exec';
 const TEACHERS=[
   {name:'Jesse Ritter',email:'jritter@wawasee.k12.in.us'},
   {name:'Christine Troutman',email:'ctroutman@wawasee.k12.in.us'},
@@ -344,6 +356,45 @@ async function doSubmit(){
   const confirmBtn=$('#confirm_btn'), submitBtn=$('#submit');
   if(confirmBtn) confirmBtn.disabled=true; if(submitBtn) submitBtn.disabled=true;
 
+  showLoading('Generating PDF and sending to your teacher…');
+  try{
+    const pdf=await buildPDF();
+    const base=fileBase();
+    const pdfFile=new File([pdf], base+'.pdf', {type:'application/pdf'});
+    const payload={
+      to: teacher.email,
+      subject: `My Career SPIN Submission - ${getSubjectDate()}`,
+      student:{ student_name:$('#m_name').value, grade:$('#m_grade').value, teacher_name:teacher.name },
+      files:[{ filename: pdfFile.name, mimeType: pdfFile.type, data: await toB64(pdfFile) }]
+    };
+
+    let sent=false; let respJson=null; let networkErr=null;
+    try{
+      const r=await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),redirect:'follow',cache:'no-store'});
+      try{ respJson=await r.json(); }catch{}
+      sent = r.ok || !!respJson;
+    }catch(e){ networkErr=e; }
+    if(!sent){
+      try{ await fetch(GAS_ENDPOINT,{method:'POST',body:JSON.stringify(payload),mode:'no-cors'}); sent=true; }catch(e){ networkErr=e; }
+    }
+
+    if(sent){
+      $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
+      const url=URL.createObjectURL(pdf); showToast('Survey submitted', url); openSuccess(url);
+    } else {
+      console.error('Submit failed', networkErr, respJson);
+      alert('Submission failed. Download your PDF and share manually.');
+    }
+  } finally {
+    hideLoading();
+    closeConfirm();
+    if(confirmBtn) confirmBtn.disabled=false; if(submitBtn) submitBtn.disabled=false;
+  }
+}
+
+  const confirmBtn=$('#confirm_btn'), submitBtn=$('#submit');
+  if(confirmBtn) confirmBtn.disabled=true; if(submitBtn) submitBtn.disabled=true;
+
   const pdf=await buildPDF();
   const base=fileBase();
   const pdfFile=new File([pdf], base+'.pdf', {type:'application/pdf'});
@@ -382,6 +433,10 @@ function showToast(message, linkHref){
   const toast=$('#toast'); if(!toast) return;
   $('#toast_msg').textContent=message||'Survey submitted';
   const a=$('#toast_link'); if(a){ if(linkHref){ a.href=linkHref; a.style.display='inline'; } else { a.style.display='none'; } }
+  toast.style.display='flex'; setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000);
+}
+function showLoading(text){ const el=$('#loading'); if(!el) return; $('#loading_text').textContent=text||'Processing…'; el.style.display='flex'; }
+function hideLoading(){ const el=$('#loading'); if(!el) return; el.style.display='none'; } else { a.style.display='none'; } }
   toast.style.display='flex'; setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000);
 }
 $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.style.display='none'; });
@@ -447,8 +502,6 @@ if(document.readyState==='loading'){
 </script>
 </body>
 </html>
-
-
 
 
 
