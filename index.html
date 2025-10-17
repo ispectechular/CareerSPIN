@@ -5,9 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>My Career SPIN</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js">// Expose handlers globally for inline onclick fallback
-window.submitFlow = submitFlow; window.doSubmit = doSubmit; window.closeConfirm = closeConfirm;
-</script>
+  <!-- jsPDF (no inline code here) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <style>
     :root{
       --brandPurple:#4A7A92;
@@ -78,7 +77,7 @@ window.submitFlow = submitFlow; window.doSubmit = doSubmit; window.closeConfirm 
     <div id="qroot"></div>
 
     <!-- ACTIONS -->
-    <div class="bar"><button id="submit" class="btn" onclick="submitFlow()">Submit</button></div>
+    <div class="bar"><button id="submit" class="btn">Submit</button></div>
     <div id="status" class="helper" aria-live="polite"></div>
 
     <!-- Toast -->
@@ -101,6 +100,20 @@ window.submitFlow = submitFlow; window.doSubmit = doSubmit; window.closeConfirm 
     </div>
   </div>
 
+  <!-- Success Modal -->
+  <div class="modal-backdrop" id="success_modal" style="display:none">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="success_title">
+      <header id="success_title">Submission successful</header>
+      <div class="content">
+        <p>Your My Career SPIN was submitted and emailed to your teacher.</p>
+        <p><a id="success_pdf_link" href="#" target="_blank" rel="noopener">Open the PDF you submitted</a></p>
+      </div>
+      <div class="actions">
+        <button id="success_close" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 /********************
  * CONFIG + STATE   *
@@ -114,6 +127,7 @@ const TEACHERS=[
   {name:'Wendy Ortiz',email:'wortiz@wawasee.k12.in.us'}
 ];
 
+const DRAFT_KEY='career_spin_autosave_v1';
 const STATE={meta:{},answers:{}};
 
 // Career questions (kept concise but complete; no "any other career preferences")
@@ -149,7 +163,10 @@ const $=s=>document.querySelector(s);
 const $$=s=>Array.from(document.querySelectorAll(s));
 const todayISO=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const toB64=blob=>new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result.split(',')[1]);fr.readAsDataURL(blob);});
-// Ensure teacher lookup exists (fixes ReferenceError)
+// Autosave helpers
+function saveDraft(){ try{ localStorage.setItem(DRAFT_KEY, JSON.stringify(STATE)); }catch(e){} }
+function loadDraft(){ try{ const raw=localStorage.getItem(DRAFT_KEY); if(!raw) return; const s=JSON.parse(raw); STATE.meta=s.meta||{}; STATE.answers=s.answers||{}; }catch(e){} }
+// Ensure teacher lookup exists
 function getSelectedTeacher(){
   const sel=document.querySelector('#m_teacher');
   if(!sel) return null;
@@ -168,16 +185,16 @@ function renderQ(q){
   const row=document.createElement('div'); row.className='row';
   const val=STATE.answers[q.qid];
   if(q.type==='text'){
-    const i=document.createElement('input'); i.type='text'; i.placeholder='Type your answer…'; i.value=val||''; i.oninput=e=>{ STATE.answers[q.qid]=e.target.value; nudgeClear(q.qid); };
+    const i=document.createElement('input'); i.type='text'; i.placeholder='Type your answer…'; i.value=val||''; i.oninput=e=>{ STATE.answers[q.qid]=e.target.value; nudgeClear(q.qid); saveDraft(); };
     row.appendChild(i);
   } else if(q.type==='long_text'){
-    const t=document.createElement('textarea'); t.placeholder='Type your answer…'; t.value=val||''; t.oninput=e=>{ STATE.answers[q.qid]=e.target.value; nudgeClear(q.qid); };
+    const t=document.createElement('textarea'); t.placeholder='Type your answer…'; t.value=val||''; t.oninput=e=>{ STATE.answers[q.qid]=e.target.value; nudgeClear(q.qid); saveDraft(); };
     row.appendChild(t);
   } else if(q.type==='single'){
     (q.options||[]).forEach(o=>{
       const lab=document.createElement('label'); lab.className='option';
       const r=document.createElement('input'); r.type='radio'; r.name=q.qid; r.value=o.oid; r.checked=(val===o.oid);
-      r.onchange=()=>{ STATE.answers[q.qid]=o.oid; nudgeClear(q.qid); };
+      r.onchange=()=>{ STATE.answers[q.qid]=o.oid; nudgeClear(q.qid); saveDraft(); };
       lab.appendChild(r); lab.appendChild(document.createTextNode(o.label));
       row.appendChild(lab);
     });
@@ -185,8 +202,8 @@ function renderQ(q){
       const lab=document.createElement('label'); lab.className='option';
       const r=document.createElement('input'); r.type='radio'; r.name=q.qid; r.value='other'; r.checked=(val==='other');
       const t=document.createElement('input'); t.type='text'; t.placeholder='Other (type here)…'; t.value=STATE.answers[q.qid+'_other']||'';
-      r.onchange=()=>{ STATE.answers[q.qid]='other'; t.focus(); nudgeClear(q.qid); };
-      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; };
+      r.onchange=()=>{ STATE.answers[q.qid]='other'; t.focus(); nudgeClear(q.qid); saveDraft(); };
+      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; saveDraft(); };
       lab.appendChild(r); lab.appendChild(document.createTextNode('Other: ')); lab.appendChild(t);
       row.appendChild(lab);
     }
@@ -199,7 +216,7 @@ function renderQ(q){
         let a=Array.isArray(STATE.answers[q.qid])?STATE.answers[q.qid]:[];
         if(c.checked){ if(!a.includes(o.oid)) a.push(o.oid); }
         else { a=a.filter(x=>x!==o.oid); }
-        STATE.answers[q.qid]=a; nudgeClear(q.qid);
+        STATE.answers[q.qid]=a; nudgeClear(q.qid); saveDraft();
       };
       lab.appendChild(c); lab.appendChild(document.createTextNode(o.label));
       row.appendChild(lab);
@@ -213,9 +230,9 @@ function renderQ(q){
         let a=Array.isArray(STATE.answers[q.qid])?STATE.answers[q.qid]:[];
         if(c.checked){ if(!a.includes('other')) a.push('other'); t.focus(); }
         else { a=a.filter(x=>x!=='other'); }
-        STATE.answers[q.qid]=a; nudgeClear(q.qid);
+        STATE.answers[q.qid]=a; nudgeClear(q.qid); saveDraft();
       };
-      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; };
+      t.oninput=e=>{ STATE.answers[q.qid+'_other']=e.target.value; saveDraft(); };
       lab.appendChild(c); lab.appendChild(document.createTextNode('Other: ')); lab.appendChild(t);
       row.appendChild(lab);
     }
@@ -312,7 +329,7 @@ async function buildPDF(){
 }
 
 async function submitFlow(){
-  console.log('[UI] submitFlow called');
+  console.log('[UI] Submit clicked');
   if(!validate()){ window.scrollTo({top:0,behavior:'smooth'}); return; }
   openConfirm();
 }
@@ -349,7 +366,7 @@ async function doSubmit(){
 
   if(sent){
     $('#status').textContent=`Submitted! Sent to ${teacher.name}.`;
-    const url=URL.createObjectURL(pdf); showToast('Survey submitted', url);
+    const url=URL.createObjectURL(pdf); showToast('Survey submitted', url); openSuccess(url);
   } else {
     console.error('Submit failed', networkErr, respJson);
     alert('Submission failed. Download your PDF and share manually.');
@@ -368,6 +385,12 @@ function showToast(message, linkHref){
   toast.style.display='flex'; setTimeout(()=>{ if(toast.style.display==='flex') toast.style.display='none'; }, 10000);
 }
 $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.style.display='none'; });
+function openSuccess(pdfUrl){
+  const sm=document.getElementById('success_modal');
+  const a=document.getElementById('success_pdf_link');
+  if(a && pdfUrl){ a.href=pdfUrl; }
+  if(sm){ sm.style.display='flex'; }
+}
 
 /********************
  * START
@@ -375,28 +398,45 @@ $('#toast_close')?.addEventListener('click',()=>{ const t=$('#toast'); if(t) t.s
 function initTeacher(){ const sel=$('#m_teacher'); TEACHERS.forEach((t,i)=>{ const o=document.createElement('option'); o.value=String(i); o.textContent=t.name; sel.appendChild(o); }); }
 function main(){
   try{
-    $('#m_date').value=todayISO();
+    loadDraft();
+    // Prefill meta
+    if(STATE.meta){
+      if(STATE.meta.name) $('#m_name').value=STATE.meta.name;
+      if(STATE.meta.email) $('#m_email').value=STATE.meta.email;
+      if(STATE.meta.grade) $('#m_grade').value=STATE.meta.grade;
+      if(STATE.meta.date) $('#m_date').value=STATE.meta.date; else $('#m_date').value=todayISO();
+    } else { $('#m_date').value=todayISO(); }
+
     initTeacher();
+    if(STATE.meta && STATE.meta.teacherIndex!==undefined){ const sel=$('#m_teacher'); if(sel) sel.value=String(STATE.meta.teacherIndex); }
+
+    // Bind meta autosave
+    [['#m_name','name'],['#m_email','email'],['#m_grade','grade'],['#m_date','date']].forEach(([sel,key])=>{
+      const el=$(sel); if(!el) return; el.addEventListener('input', e=>{ STATE.meta[key]=e.target.value; saveDraft(); });
+    });
+    const teacherSel=$('#m_teacher'); if(teacherSel){ teacherSel.addEventListener('change', e=>{ STATE.meta.teacherIndex = e.target.value===''? undefined : Number(e.target.value); saveDraft(); }); }
+
     render();
+
+    // Wire actions
     const submitBtn=$('#submit');
     const confirmBtn=$('#confirm_btn');
     const backBtn=$('#back_btn');
-    if(submitBtn){
-      submitBtn.addEventListener('click', ()=>{
-        console.log('[UI] Submit clicked');
-        if(validate()) { console.log('[UI] Validation passed'); openConfirm(); }
-        else { console.log('[UI] Validation failed'); }
-      });
-    } else {
-      console.error('[UI] Submit button not found');
-    }
+    const successClose=$('#success_close');
+    if(submitBtn){ submitBtn.addEventListener('click', submitFlow); }
     if(confirmBtn) confirmBtn.addEventListener('click', doSubmit);
     if(backBtn) backBtn.addEventListener('click', closeConfirm);
-    console.log('[Init] Bound event listeners');
-  }catch(e){
-    console.error('[Init error]', e);
-    alert('There was a script error initializing the page. Please reload.');
-  }
+    if(successClose) successClose.addEventListener('click', ()=>{ $('#success_modal').style.display='none'; });
+
+    console.log('[Init] Ready');
+
+    // Lightweight self-tests (non-blocking)
+    try{
+      console.assert(typeof getSelectedTeacher==='function', 'getSelectedTeacher exists');
+      console.assert(typeof validate==='function', 'validate exists');
+      console.assert(typeof buildPDF==='function', 'buildPDF exists');
+    }catch(_){/*ignore*/}
+  }catch(e){ console.error('[Init error]', e); alert('There was a script error initializing the page. Please reload.'); }
 }
 
 if(document.readyState==='loading'){
@@ -407,6 +447,7 @@ if(document.readyState==='loading'){
 </script>
 </body>
 </html>
+
 
 
 
